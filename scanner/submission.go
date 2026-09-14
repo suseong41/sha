@@ -34,7 +34,7 @@ func (c *credentialTracker) observe(ctx *Context, tok tokenizer.Token) {
 	switch {
 	case isPasswordInput(tok):
 		if c.password {
-			return // form 전송지를 이미 말린 경우
+			return // form 전송지를 이미 알린 경우
 		}
 		c.password = true
 		action, _ := form.Attr("action")

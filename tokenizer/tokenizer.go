@@ -35,6 +35,7 @@ type Tokenizer struct {
 	pos        int
 	rawTag     string // "": 일반 모드, "script": 원시 모드
 	lineStarts []int  // 각 줄이 시작하는 오프셋
+	truncated  bool   // 입력이 태그·주석원시 텍스트 한가운데서 끝났는가
 }
 
 type Attribute struct {
@@ -66,9 +67,15 @@ var rawTextTags = map[string]bool{
 	"noscript": true, // 스크립트 켜진 브라우저 기준, 꺼져 있으면 일반 마크업
 }
 
+// Truncated(): 입력이 태그·속성·주석·원시 텍스트 요소의 한가운데서 끝났는가.
+func (t *Tokenizer) Truncated() bool { return t.truncated }
+
 // Next() - Token 꺼냄.
 func (t *Tokenizer) Next() Token {
 	if len(t.buf) <= t.pos {
+		if t.rawTag != "" {
+			t.truncated = true // <style> 직후 입력이 끝남
+		}
 		return Token{Type: ErrToken}
 	}
 
@@ -118,7 +125,9 @@ func (t *Tokenizer) readTag(typ TokenType) Token {
 	}
 	name := toASCIILower(t.buf[nameStart:t.pos])
 	attrs, selfClosing := t.readAttributes()
-	t.skipToTagEnd()
+	if !t.skipToTagEnd() {
+		t.truncated = true
+	}
 
 	if typ == StartTagToken && rawTextTags[name] {
 		t.rawTag = name
@@ -139,6 +148,10 @@ func (t *Tokenizer) readRawText() Token {
 		for end < len(t.buf) && !t.isEndTagAt(end, name) {
 			end++
 		}
+	}
+
+	if end == len(t.buf) {
+		t.truncated = true // 닫는 태그 없이 끝남
 	}
 
 	if end == t.pos {
@@ -317,6 +330,7 @@ func (t *Tokenizer) readComment() Token {
 	}
 
 	// 닫히지 않고 끝까지 주석인 경우
+	t.truncated = true
 	t.pos = len(t.buf)
 	return Token{Type: CommentToken, Data: string(t.buf[i:j]), Offset: start}
 }
@@ -331,6 +345,8 @@ func (t *Tokenizer) readBogusComment(contentStart int) Token {
 	data := string(t.buf[contentStart:i])
 	if i < len(t.buf) {
 		i++ // '>
+	} else {
+		t.truncated = true
 	}
 	t.pos = i
 	return Token{Type: CommentToken, Data: data, Offset: start}
@@ -347,7 +363,9 @@ func (t *Tokenizer) readDoctype() Token {
 		t.pos++
 	}
 	name := toASCIILower(t.buf[nameStart:t.pos])
-	t.skipToTagEnd()
+	if !t.skipToTagEnd() {
+		t.truncated = true
+	}
 
 	return Token{Type: DoctypeToken, Name: name, Data: string(t.buf[start:t.pos]), Offset: start}
 }
@@ -405,13 +423,16 @@ func (t *Tokenizer) scriptDataEnd(from int) int {
 	return len(t.buf)
 }
 
-func (t *Tokenizer) skipToTagEnd() {
+// skipToTagEnd(): '>' 까지 건너뛴다. '>'를 못 찾고 입력이 끝나면 false
+func (t *Tokenizer) skipToTagEnd() bool {
 	for t.pos < len(t.buf) && t.buf[t.pos] != '>' {
 		t.pos++
 	}
 	if t.pos < len(t.buf) {
 		t.pos++ // '>' 포함.
+		return true
 	}
+	return false
 }
 
 func (t *Tokenizer) isTagStart() bool {

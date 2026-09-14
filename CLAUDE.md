@@ -128,7 +128,7 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 ```bash
 go build ./...          # _test.go 는 컴파일하지 않는다
 go vet ./...            # 컴파일러가 안 잡는 것 (도달 불가 코드 등)
-go test ./...           # 481개 (서브테스트 포함) · 주입 테스트 포함 약 3초
+go test ./...           # 530개 (서브테스트 포함) · 주입 테스트 포함 약 3초
 go test -short ./...    # 주입 테스트 건너뜀 — 고치는 중에 자주 돌릴 때
 gofmt -l .              # 출력이 있으면 실패
 
@@ -165,6 +165,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 | 테스트 중 발견 줄이 터미널에 찍히고 버퍼가 빔 | `fmt.Printf` 가 주입된 `stdout` 대신 진짜 stdout 에 쓴다 |
 | 수정을 되돌려도 테스트가 전부 통과 | 수정만 넣고 테스트 케이스를 빠뜨렸다 |
 | 건수 테스트는 통과인데 발견 위치가 한 토큰 뒤 | 관찰자·추적기가 규칙보다 **늦게** 호출된다 |
+| 고친 줄이 반영 안 된 것 같은 테스트 결과 | 에디터에서 **저장하지 않았다** (`go test` 는 디스크를 본다) |
 
 **도구가 못 잡은 실제 결함들** — 테스트가 유일한 방어선이었다:
 `!` 누락(무한 루프) · `s = s`(자기 대입) · `" atob("` 앞 공백 하나 ·
@@ -178,7 +179,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 21종 · 테스트 481개 · 퍼징 5,600만 케이스 무결
+규칙 22종 · 테스트 530개 · 퍼징 5,600만 케이스 무결
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 정상 코퍼스 12쪽: 458건 → 26건 (오탐 41 + 중복 391) · HIGH 0건
 커버리지: main 98.5% (run 100%) · scanner 99.0% · tokenizer 95.1%
@@ -197,11 +198,18 @@ go test ./scanner -run 'Corpus|Malicious' -v
 주입 구간 안인지로 판정, `-short` 면 건너뜀. 결함 5종 비교에서 **textarea 무방비는 이 테스트만** 잡았고,
 **escaped 없는 이중 이스케이프는 아무도 못 잡아** `TestScriptEscaped/문자열속script태그` 추가.
 주입 테스트는 위치가 한 토큰 밀리는 결함은 못 잡는다(`TestCredentialOffset` 몫).
+**33교시** — `<noscript>` 를 원시 텍스트로(스크립트가 켜진 브라우저 기준). 속성값에 숨긴 `</noscript>` 로 탈출한
+`<img onerror>` 를 놓치던 미탐. 대가: noscript 안 공격 23종이 안 보임(8종은 원래 실행 불가, 15종은 스크립트 끈 사용자만).
+`scanner/differential_test.go` 신설 — 브라우저와 해석이 갈리는 입력 모음. 주입 위치에 `noscript` 대조군 추가.
+**34교시** — `Tokenizer.Truncated()`(EOF 가 구조 한가운데서 오면 참, 여섯 곳에서 표시) · `noscript-breakout`
+(MEDIUM evasion, `scanner/rules_noscript.go`): noscript 내용을 다시 토큰화해 끊기면 뒤따르는 `</noscript>` 에서 보고.
+오타 가능성 때문에 MEDIUM. 주입 표에서는 제외(감싸도 여전히 탈출이라 noscript 대조군 기대가 반대).
 
 ### 다음 (우선순위 순)
 
-1. **`<noscript>` 파싱 차이 측정** — 스크립트가 켜진 브라우저는 `<noscript>` 안을 원시 텍스트로 본다.
-   우리 토크나이저는 마크업으로 파싱한다. 오탐인지·정책(스크립트 꺼진 사용자)인지 먼저 측정.
+1. **외래 콘텐츠 `<svg>`·`<math>`** — 그 안의 `<style>`·`<noscript>` 는 원시 텍스트가 아니라 마크업.
+   `<svg><style><img onerror>` 에서 반대 방향의 파싱 차이. 토크나이저가 외래 콘텐츠를 구분하지 않아 규모가 큼 — 먼저 측정.
+   (후보: `noscript-breakout` HIGH 조합 — 탈출 ∧ 직후 실행 요소)
 2. `<input form="id">`·`<button form="id">` 원격 연결 — 스택으로는 불가, 트리 + id 인덱스 필요
 3. 전체 트리 구성 — foster parenting, 삽입 모드 23개
 4. punycode 호스트 — 정상 IDN과 구별하려면 혼합 스크립트 판정 필요

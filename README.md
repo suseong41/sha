@@ -20,7 +20,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   `static.example.com` 은 `www.example.com` 페이지에서 외부가 아니다
 * **집계** — 같은 원인은 한 줄로 묶는다.
   CDN 한 곳에서 스크립트 30개를 불러도 조치는 하나이므로 `(30곳)` 으로 보고한다
-* **탐지 규칙 21종** (심각도 · 분류별)
+* **탐지 규칙 22종** (심각도 · 분류별)
 
   | 심각도 | 분류 | 규칙 | 내용 |
   |---|---|---|---|
@@ -40,6 +40,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | MEDIUM | supply-chain | `mixed-content` | HTTPS 페이지의 `http://` 하위 리소스 |
   | MEDIUM | supply-chain | `resource-ip-literal` | 하위 리소스를 IP 주소에서 로드 |
   | MEDIUM | evasion | `obfuscated-eval` | `eval()` + 디코더(`atob` 등) 조합 |
+  | MEDIUM | evasion | `noscript-breakout` | `<noscript>` 안 속성값·주석·`<style>` 에 숨긴 `</noscript>` 로 탈출 |
   | MEDIUM | hardening | `weak-password-field` | 이름은 비밀번호인데 `type` 이 `password` 가 아님 |
   | MEDIUM | hardening | `local-credential-post` | 비밀번호 폼이 `localhost`·`127.0.0.1` 로 전송 |
   | LOW | evasion | `zero-width` | 제로폭 문자 난독화 |
