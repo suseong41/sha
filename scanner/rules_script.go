@@ -87,14 +87,13 @@ func ruleExfilChannel(ctx *Context, tok tokenizer.Token) []Finding {
 		}
 		return nil
 	}
-	if tok.Type == tokenizer.StartTagToken && tok.Name == "form" && ctx.FormAccepted(tok) {
-		action, _ := tok.Attr("action")
+	if attr, action, ok := formDestination(ctx, tok); ok {
 		low := asciiLower(normalizeURL(action))
 		for _, h := range exfilHosts {
 			if strings.Contains(low, h) {
 				return []Finding{{
 					Code: "exfil-channel", Class: ClassExfiltration, Title: "폼이 외부 메시징 API 로 전송됨", Severity: High,
-					Offset: tok.Offset, Evidence: "action=" + action,
+					Offset: tok.Offset, Evidence: attr + "=" + action,
 				}}
 			}
 		}

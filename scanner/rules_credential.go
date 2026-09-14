@@ -18,6 +18,42 @@ func credentialForm(ctx *Context, tok tokenizer.Token) (tokenizer.Token, bool) {
 	return ctx.OpenForm()
 }
 
+// formDestination(): 토큰이 폼 전송지를 선언하면 (속성 이름, 값) 반환.
+func formDestination(ctx *Context, tok tokenizer.Token) (attr, url string, ok bool) {
+	if tok.Type != tokenizer.StartTagToken {
+		return "", "", false
+	}
+	switch {
+	case tok.Name == "form":
+		if !ctx.FormAccepted(tok) {
+			return "", "", false // 중첩 form
+		}
+		attr = "action"
+	case isSubmitter(tok):
+		if _, inForm := ctx.OpenForm(); !inForm {
+			return "", "", false // form 밖의 버튼은 제출하지 않음.
+		}
+		attr = "formaction"
+	default:
+		return "", "", false
+	}
+	url, ok = tok.Attr(attr)
+	return attr, url, ok
+}
+
+// isSubmitter(): 누르면 form을 제출하는 요소인가
+func isSubmitter(tok tokenizer.Token) bool {
+	t, _ := tok.Attr("type")
+	t = asciiLower(strings.TrimSpace(t))
+	switch tok.Name {
+	case "button":
+		return t != "button" && t != "reset"
+	case "input":
+		return t == "submit" || t == "image"
+	}
+	return false
+}
+
 // 비밀번호가 평문으로 전송될 때.
 // A. <input type=password>가 존재,
 // B. <form> 안에 있을 때,

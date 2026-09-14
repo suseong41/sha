@@ -126,7 +126,7 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 ```bash
 go build ./...          # _test.go 는 컴파일하지 않는다
 go vet ./...            # 컴파일러가 안 잡는 것 (도달 불가 코드 등)
-go test ./...           # 358개 (서브테스트 포함)
+go test ./...           # 370개 (서브테스트 포함)
 gofmt -l .              # 출력이 있으면 실패
 
 # 퍼징 — 큰 변경 뒤에는 길게
@@ -174,7 +174,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 21종 · 테스트 358개 · 퍼징 5,600만 케이스 무결
+규칙 21종 · 테스트 370개 · 퍼징 5,600만 케이스 무결
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 정상 코퍼스 12쪽: 458건 → 26건 (오탐 41 + 중복 391) · HIGH 0건
 커버리지: main 98.5% (run 100%) · scanner 99.0% · tokenizer 95.1%
@@ -183,12 +183,16 @@ go test ./scanner -run 'Corpus|Malicious' -v
 **26·27교시** — eTLD+1 · 호스트별 집계 · 정상 코퍼스 12쪽 · `corpus_test.go`.
 **28교시** — `run(args, stdout, stderr)` 로 CLI 테스트 가능화 · `main_test.go` · `severity_test.go`(상수 순서 단언).
 **29교시** — 코퍼스에 공격 19종 주입 측정(456건 미탐 0) · 중첩 폼 HIGH 오탐 수정(`FormAccepted`).
+**30교시** — `formDestination`·`isSubmitter` 헬퍼(`rules_credential.go`). `form-action-ip`·`exfil-channel` 이
+`<button formaction>`·`<input type=submit|image formaction>` 도 본다. button 은 type 이 button·reset 이 아니면 전부 submit.
 주입 측정 코드는 스크래치패드에만 있다 — 영구 테스트화는 아래 2번.
+**문서(DISCUSSION·Artifact)에는 30교시가 아직 없다** — 31교시와 같은 주제라 함께 기록한다.
 
 ### 다음 (우선순위 순)
 
-1. **`formaction` 미탐** — `<button formaction="http://IP/">` 로 보내면
-   `form-action-ip` · `exfil-channel` · `cross-origin-password-form` 이 전부 0건 (실측).
+1. **비밀번호 규칙 3종의 `formaction` 미탐** — `cross-origin-password-form` · `cleartext-credentials` ·
+   `local-credential-post` 는 아직 0건. 규칙이 `<input type=password>` 시점에 판정하는데
+   버튼(전송지)은 보통 그 **뒤에** 온다 → 폼 하나 동안 "비밀번호 있음"과 "전송지 집합"을 모아 판단하는 구조 필요.
 2. **주입 측정을 영구 테스트로** — 정상 코퍼스 × 공격 조각 × 위치(body 시작·끝, 주석·textarea 대조군).
    발견 오프셋이 주입 구간 안에 있는지로 판정한다.
 3. `<input form="id">` 원격 연결 — 스택으로는 불가, 트리 + id 인덱스 필요

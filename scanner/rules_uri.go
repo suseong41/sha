@@ -30,13 +30,7 @@ func isIPLiteralHost(host string) bool {
 
 // 폼을 도메인 없이 ip로 보내는 정상 사이트는 거의 없음
 func ruleFormActionIP(ctx *Context, tok tokenizer.Token) []Finding {
-	if tok.Type != tokenizer.StartTagToken || tok.Name != "form" {
-		return nil
-	}
-	if !ctx.FormAccepted(tok) {
-		return nil // 중첩 form
-	}
-	action, ok := tok.Attr("action")
+	attr, action, ok := formDestination(ctx, tok)
 	if !ok {
 		return nil
 	}
@@ -46,7 +40,7 @@ func ruleFormActionIP(ctx *Context, tok tokenizer.Token) []Finding {
 	}
 	return []Finding{{
 		Code: "form-action-ip", Class: ClassExfiltration, Title: "폼이 IP 주소로 직접 전송됨",
-		Severity: High, Offset: tok.Offset, Evidence: "action=" + action,
+		Severity: High, Offset: tok.Offset, Evidence: attr + "=" + action,
 	}}
 }
 

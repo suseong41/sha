@@ -37,6 +37,17 @@ func TestFormActionIP(t *testing.T) {
 		{"중첩form무시", `<form action="/ok"><form action="http://192.168.0.1/x"></form></form>`, 0},
 		{"바깥이IP", `<form action="http://192.168.0.1/x"><form action="/ok"></form></form>`, 1},
 		{"앞form닫힌뒤", `<form action="/ok"></form><form action="http://192.168.0.1/x"></form>`, 1},
+		// formaction — 그 버튼으로 제출하면 form 의 action 을 덮어쓴다
+		{"button formaction", `<form action="/ok"><button formaction="http://192.168.0.1/x">전송</button></form>`, 1},
+		{"submit formaction", `<form action="/ok"><input type="submit" formaction="http://192.168.0.1/x"></form>`, 1},
+		{"image formaction", `<form action="/ok"><input type="image" src="a.png" formaction="//203.0.113.5/x"></form>`, 1},
+		{"잘못된type은submit", `<form action="/ok"><button type="foo" formaction="http://192.168.0.1/x">x</button></form>`, 1},
+		{"action과formaction둘다", `<form action="http://192.168.0.1/a"><button formaction="http://192.168.0.2/b">x</button></form>`, 2},
+		{"type=button", `<form action="/ok"><button type=" Button " formaction="http://192.168.0.1/x">x</button></form>`, 0},
+		{"type=reset", `<form action="/ok"><button type="reset" formaction="http://192.168.0.1/x">x</button></form>`, 0},
+		{"text의formaction", `<form action="/ok"><input type="text" formaction="http://192.168.0.1/x"></form>`, 0},
+		{"form밖버튼", `<button formaction="http://192.168.0.1/x">x</button>`, 0},
+		{"formaction도메인", `<form action="/ok"><button formaction="https://b.com/p">x</button></form>`, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
