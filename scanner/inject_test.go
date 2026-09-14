@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// noscript-breakout은 <noscript>로 한 번 더 감싸도 여전히 탈출이라 differential_test.go에서 따로 검증
 // attacks: 정상 페이지에 끼워 넣을 공격 조각
 var attacks = []struct {
 	name, code, html string
@@ -37,6 +38,7 @@ var attacks = []struct {
 	{"cleartext-formaction", "cleartext-credentials", `<form action="/login"><input type="password" name="pw"><input type="submit" formaction="http://login.inject.example/"></form>`, false},
 	{"weak-password", "weak-password-field", `<form action="/login"><input type="text" name="password"></form>`, false},
 	{"local-credential", "local-credential-post", `<form action="http://127.0.0.1:8080/"><input type="password" name="pw"></form>`, false},
+	{"mixed-script-host", "mixed-script-host", `<a href="https://аpple.com/">x</a>`, false},
 }
 
 var (

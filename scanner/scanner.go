@@ -65,6 +65,7 @@ func newRules() []Rule {
 		ruleFunc(ruleLocalCredentialPost),
 		&phishingFlagPage{},
 		&noscriptBreakoutRule{},
+		&idnHomographRule{},
 	}
 }
 

@@ -22,7 +22,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   `static.example.com` 은 `www.example.com` 페이지에서 외부가 아니다
 * **집계** — 같은 원인은 한 줄로 묶는다.
   CDN 한 곳에서 스크립트 30개를 불러도 조치는 하나이므로 `(30곳)` 으로 보고한다
-* **탐지 규칙 22종** (심각도 · 분류별)
+* **탐지 규칙 23종** (심각도 · 분류별)
 
   | 심각도 | 분류 | 규칙 | 내용 |
   |---|---|---|---|
@@ -35,6 +35,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | HIGH | execution | `meta-refresh-scheme` | `meta refresh` 가 `data:`/`javascript:` 로 이동 |
   | HIGH | execution | `data-uri-document` | 실행 가능한 `data:` URI 를 iframe/object/script 에 삽입 |
   | HIGH | origin | `base-href-external` | `<base href>` 가 외부 도메인 — 모든 상대 URL이 그쪽으로 |
+  | HIGH | origin | `mixed-script-host` | 호스트 라벨에 모양이 같은 문자 체계가 섞임 (`аpple.com` 의 키릴 а) |
   | MEDIUM | execution | `javascript-url` | `javascript:` URL (문자 참조 우회 포함) |
   | MEDIUM | execution | `dangerous-download` | `.hta`·`.scr`·`.vbs` 등으로 연결되는 링크 |
   | MEDIUM | origin | `iframe-sandbox-escape` | `allow-scripts` 와 `allow-same-origin` 동시 허용 |

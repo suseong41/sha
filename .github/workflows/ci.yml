@@ -59,6 +59,8 @@ jobs:
             target: FuzzUnescape
           - pkg: ./scanner
             target: FuzzScan
+          - pkg: ./scanner
+            target: FuzzPunyDecode
     steps:
       - uses: actions/checkout@v4
 
