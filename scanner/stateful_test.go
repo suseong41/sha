@@ -81,8 +81,12 @@ func TestZeroWidth(t *testing.T) {
 		{"라틴 사이 ZWNJ", "<p>ad\u200cmin</p>", 1},
 		{"숫자 사이 ZWJ", "<p>1\u200d2</p>", 1},
 		{"한쪽만 아랍어", "<p>a\u200c\u062a</p>", 1},
-		{"이모지에 ZWNJ", "<p>\U0001F9CD\u200c\u2642</p>", 1},
+		{"이모지에 ZWNJ", "<p>\U0001F9CD\u200c\u2642</p>", 0},
 		{"연결 문자 사이 ZWSP", "<p>\u0627\u200b\u062a</p>", 1},
+		{"WORD JOINER 경계", "<p>+17\u2060°</p>", 0},
+		{"WORD JOINER 글자 사이", "<p>ad\u2060min</p>", 1},
+		{"제로폭 둘 연속", "<p>a\u200b\u200bb</p>", 1},
+		{"텍스트 끝", "<p>제목\u200b</p>", 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

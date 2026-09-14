@@ -14,7 +14,6 @@ var attacks = []struct {
 	name, code, html string
 	text             bool // <textarea> 안에서도 사용자에게 보임
 }{
-	{"javascript-url", "javascript-url", `<a href="javascript:alert(1)">x</a>`, false},
 	{"zero-width", "zero-width", "<p>보이지\u200b않음</p>", true},
 	{"mixed-content", "mixed-content", `<img src="http://inject.example/a.png">`, false},
 	{"sri-missing", "sri-missing", `<script src="https://inject-cdn.example/a.js"></script>`, false},

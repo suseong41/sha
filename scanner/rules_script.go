@@ -104,22 +104,55 @@ func ruleExfilChannel(ctx *Context, tok tokenizer.Token) []Finding {
 // eval()이 디코더와 함께일 때 의심
 var decoders = []string{"atob(", "unescape(", "fromcharcode(", "decodeuricomponent("}
 
+// evalArgument(): from 이후 첫 eval( 의 인자 범위를 괄호 균형으로 찾음.
+func evalArgument(low string, from int) (arg string, at int, ok bool) {
+	i := strings.Index(low[from:], "eval(")
+	if i < 0 {
+		return "", -1, false
+	}
+	at = from + i
+	start := at + len("eval(")
+	depth := 1
+	for j := start; j < len(low); j++ {
+		switch low[j] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return low[start:j], at, true
+			}
+		}
+	}
+	return "", at, false
+}
+
+// eval에 디코더를 먹이는 것만 봄
 func ruleObfuscateEval(ctx *Context, tok tokenizer.Token) []Finding {
 	data, ok := scriptText(ctx, tok)
 	if !ok {
 		return nil
 	}
 	low := asciiLower(data)
-	at := strings.Index(low, "eval(")
-	if at < 0 {
-		return nil
-	}
-	for _, d := range decoders {
-		if strings.Contains(low, d) {
-			return []Finding{{
-				Code: "obfuscated-eval", Class: ClassEvasion, Title: "eval() 과 디코더 조합", Severity: Medium,
-				Offset: tok.Offset + at, Evidence: "eval( + " + strings.TrimSuffix(d, "("),
-			}}
+	for from := 0; from < len(low); {
+		arg, at, closed := evalArgument(low, from)
+		if at < 0 {
+			break
+		}
+		from = at + len("eval(")
+		if !closed {
+			continue
+		}
+		for _, d := range decoders {
+			if strings.Contains(arg, d) {
+				return []Finding{{
+					Code: "obfuscated-eval", Class: ClassEvasion,
+					Title:    "eval() 인자에 디코더",
+					Severity: Medium,
+					Offset:   tok.Offset + at,
+					Evidence: "eval(" + excerpt(arg, 0, 40) + ")",
+				}}
+			}
 		}
 	}
 	return nil

@@ -44,7 +44,7 @@ const (
 func newRules() []Rule {
 	return []Rule{
 		&inlineHandlerRule{},
-		ruleFunc(ruleJavaScriptURL),
+		&javaScriptURLRule{},
 		ruleFunc(ruleZeroWidth),
 		ruleFunc(ruleCrossOriginPasswordForm),
 		ruleFunc(ruleMixedContent),

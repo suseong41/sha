@@ -89,3 +89,35 @@ func TestSignatureOffset(t *testing.T) {
 		t.Errorf("Col = %d, want 12", f.Col)
 	}
 }
+
+// eval 에 디코더를 먹이는 구조를 봄
+func TestObfucatedEvalArgument(t *testing.T) {
+	const code = "obfuscated-eval"
+	cases := []struct {
+		name, html string
+		want       int
+	}{
+		// 인자에 디코더가 들어간다
+		{"직접", `<script>eval(atob(x))</script>`, 1},
+		{"공백", `<script>eval( atob(x) )</script>`, 1},
+		{"객체 경유", `<script>eval(window.atob(x))</script>`, 1},
+		{"중첩", `<script>eval(decodeURIComponent(escape(s)))</script>`, 1},
+		{"앞선 호출 뒤에 디코더", `<script>eval(g() + atob(x))</script>`, 1}, // 첫 ) 에서 멈추면 놓친다
+		// 같은 스크립트에 있을 뿐 — 실전에서 만난 오탐
+		{"정규식 생성 + 별개 디코더", `<script>eval("/"+n+"=([^;]+)/").exec(document.cookie);var y=atob(z)</script>`, 0},
+		{"webpack require + 별개 디코더", `<script>eval("require")(path.join(d,f));var q=atob(p)</script>`, 0},
+		// 우리가 못 잡는 것 — 변수로 한 번 거치면 놓친다
+		{"변수 경유는 놓친다", `<script>var d=atob(x);eval(d)</script>`, 0},
+		// 단독
+		{"eval 만", `<script>eval(x)</script>`, 0},
+		{"디코더만", `<script>var y=atob(x)</script>`, 0},
+		{"괄호가 닫히지 않으면 판정하지 않는다", `<script>eval(atob(x</script>`, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := countCode(c.html, "", code); got != c.want {
+				t.Errorf("%s → %d건, want %d건", c.html, got, c.want)
+			}
+		})
+	}
+}

@@ -62,25 +62,53 @@ func (r *inlineHandlerRule) Finish(ctx *Context) []Finding {
 	}}
 }
 
-func ruleJavaScriptURL(ctx *Context, tok tokenizer.Token) []Finding {
+// javaScriptURLRule: javascript: URL을 수백개 쓰기에, 묻히지 않도록
+type javaScriptURLRule struct{ agg aggregator }
+
+const (
+	jsURLPlain  = "평문"
+	jsURLHidden = "우회"
+)
+
+func (r *javaScriptURLRule) Check(ctx *Context, tok tokenizer.Token) []Finding {
 	if tok.Type != tokenizer.StartTagToken {
 		return nil
 	}
-
-	var out []Finding
 	for _, a := range tok.Attrs {
 		if a.Name != "href" && a.Name != "src" {
 			continue
 		}
-		if isDangerousJSURL(normalizeURL(a.Value)) {
-			out = append(out, Finding{
-				Code: "javascript-url", Class: ClassExecution,
-				Title:    "javascript: URL",
-				Severity: Medium,
-				Offset:   a.Offset,
-				Evidence: a.Name + "=" + a.Value,
-			})
+		if !isDangerousJSURL(normalizeURL(a.Value)) {
+			continue
 		}
+		key := jsURLPlain
+		if !strings.HasPrefix(asciiLower(strings.TrimSpace(a.Value)), "javascript:") {
+			key = jsURLHidden // 디코딩해야 드러남
+		}
+		r.agg.add(key, a.Name+"="+a.Value, a.Offset)
+	}
+	return nil
+}
+
+func (r *javaScriptURLRule) Finish(ctx *Context) []Finding {
+	var out []Finding
+	for _, key := range r.agg.keys {
+		it := r.agg.items[key]
+		ev := it.first
+		if 1 < it.count {
+			ev = fmt.Sprintf("%d곳 (첫 위치: %s)", it.count, it.first)
+		}
+		title := "javascript: URL"
+		if key == jsURLHidden {
+			title = "문자 참조로 가린 javascript: URL"
+		}
+		out = append(out, Finding{
+			Code: "javascript-url", Class: ClassExecution,
+			Title:    title,
+			Severity: Medium,
+			Offset:   it.firstOff,
+			Evidence: ev,
+		})
 	}
 	return out
 }
@@ -101,8 +129,8 @@ func findZeroWidth(s string) (string, bool) {
 		if !ok {
 			continue
 		}
-		prev, _ := utf8.DecodeLastRuneInString(s[:i])
-		next, _ := utf8.DecodeRuneInString(s[i+utf8.RuneLen(r):])
+		prev := lastNonZeroWidth(s[:i])
+		next := firstNonZeroWidth(s[i+utf8.RuneLen(r):])
 		if zeroWidthLegit(r, prev, next) {
 			continue
 		}
@@ -113,6 +141,10 @@ func findZeroWidth(s string) (string, bool) {
 
 // zeroWidthLegit(): 제로폭 문자가 그 자리에 쓰일 이유가 있는지 확인
 func zeroWidthLegit(r, prev, next rune) bool {
+	// 단어를 쪼개지 않으면 조판 목적. 하지만 BOM은 조판 용도가 없어 의심.
+	if r != '\uFEFF' && (!wordChar(prev) || !wordChar(next)) {
+		return true
+	}
 	switch r {
 	case '\u200C', '\u200D': // ZWNJ · ZWJ
 		if joiningScript(prev) && joiningScript(next) {
@@ -122,6 +154,32 @@ func zeroWidthLegit(r, prev, next rune) bool {
 	}
 	return false
 }
+
+// lastNonZeroWidth, firstNonZeroWidth(): 제로폭 문자는 건너뛰고 앞뒤 글자를 찾음
+func lastNonZeroWidth(s string) rune {
+	for 0 < len(s) {
+		r, size := utf8.DecodeLastRuneInString(s)
+		if _, isZW := zeroWidth[r]; !isZW {
+			return r
+		}
+		s = s[:len(s)-size]
+	}
+	return utf8.RuneError
+}
+
+func firstNonZeroWidth(s string) rune {
+	for 0 < len(s) {
+		r, size := utf8.DecodeRuneInString(s)
+		if _, isZW := zeroWidth[r]; !isZW {
+			return r
+		}
+		s = s[size:]
+	}
+	return utf8.RuneError
+}
+
+// wordChar(): 제로폭 문자가 글자 사이에 끼면 단어를 쪼갠 것.
+func wordChar(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
 
 // joiningScripts(): 글자가 서로 이어져 쓰이는 문자 체계
 var joiningScripts = []*unicode.RangeTable{

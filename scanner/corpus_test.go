@@ -12,12 +12,12 @@ var corpus = []struct {
 	url   string // 그 페이지의 실제 URL
 	total int
 }{
-	{"jnu_main.html", "https://www.jnu.ac.kr/", 4},
+	{"jnu_main.html", "https://www.jnu.ac.kr/", 3},
 	{"corpus/hn.html", "https://news.ycombinator.com/", 0},
 	{"corpus/go.html", "https://go.dev/", 2},
 	{"corpus/namuwiki.html", "https://namu.wiki/", 2},
 	{"corpus/seoulsi.html", "https://www.seoul.go.kr/", 4},
-	{"corpus/gyeonggi.html", "https://www.gg.go.kr/", 5},
+	{"corpus/gyeonggi.html", "https://www.gg.go.kr/", 4},
 	{"corpus/11st.html", "https://www.11st.co.kr/", 5},
 	{"corpus/gmarket.html", "https://www.gmarket.co.kr/", 0},
 	{"corpus/lotteon.html", "https://www.lotteon.com/", 1},
