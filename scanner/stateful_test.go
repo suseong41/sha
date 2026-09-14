@@ -71,6 +71,18 @@ func TestZeroWidth(t *testing.T) {
 		{"텍스트", "<p>보이지\u200b않음</p>", 1},
 		{"속성값", "<a href=\"a\u200bb.com\">x</a>", 1},
 		{"BOM", "<p>\uFEFF</p>", 1},
+		// 맞춤법상 필수인 자리 — 난독화가 아니다
+		{"페르시아어 ZWNJ", "<p>\u0627\u0686\u200c\u062a\u06cc</p>", 0},
+		{"이모지 ZWJ", "<p>\U0001F9CD\u200d\u2642\uFE0F</p>", 0},
+		{"이모지 ZWJ + VS16", "<p>\U0001F9CD\u200d\uFE0F</p>", 0},
+		{"아랍어 속성값", "<a title=\"\u0627\u0686\u200c\u062a\">x</a>", 0},
+		{"힌디어 ZWNJ", "<p>\u0915\u094d\u200c\u0937</p>", 0},
+		// 쓸 이유가 없는 자리
+		{"라틴 사이 ZWNJ", "<p>ad\u200cmin</p>", 1},
+		{"숫자 사이 ZWJ", "<p>1\u200d2</p>", 1},
+		{"한쪽만 아랍어", "<p>a\u200c\u062a</p>", 1},
+		{"이모지에 ZWNJ", "<p>\U0001F9CD\u200c\u2642</p>", 1},
+		{"연결 문자 사이 ZWSP", "<p>\u0627\u200b\u062a</p>", 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

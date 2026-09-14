@@ -3,6 +3,8 @@ package scanner
 import (
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/suseong41/suseong-html-analyzer/tokenizer"
 )
@@ -94,12 +96,56 @@ var zeroWidth = map[rune]string{
 }
 
 func findZeroWidth(s string) (string, bool) {
-	for _, r := range s {
-		if name, ok := zeroWidth[r]; ok {
-			return name, true
+	for i, r := range s {
+		name, ok := zeroWidth[r]
+		if !ok {
+			continue
 		}
+		prev, _ := utf8.DecodeLastRuneInString(s[:i])
+		next, _ := utf8.DecodeRuneInString(s[i+utf8.RuneLen(r):])
+		if zeroWidthLegit(r, prev, next) {
+			continue
+		}
+		return name, true
 	}
 	return "", false
+}
+
+// zeroWidthLegit(): 제로폭 문자가 그 자리에 쓰일 이유가 있는지 확인
+func zeroWidthLegit(r, prev, next rune) bool {
+	switch r {
+	case '\u200C', '\u200D': // ZWNJ · ZWJ
+		if joiningScript(prev) && joiningScript(next) {
+			return true
+		}
+		return r == '\u200D' && emojiPart(prev) && emojiPart(next)
+	}
+	return false
+}
+
+// joiningScripts(): 글자가 서로 이어져 쓰이는 문자 체계
+var joiningScripts = []*unicode.RangeTable{
+	unicode.Arabic, unicode.Syriac, unicode.Thaana, unicode.Nko, unicode.Mongolian,
+	unicode.Devanagari, unicode.Bengali, unicode.Gurmukhi, unicode.Gujarati,
+	unicode.Oriya, unicode.Tamil, unicode.Telugu, unicode.Kannada, unicode.Malayalam,
+	unicode.Sinhala, unicode.Myanmar, unicode.Khmer,
+}
+
+func joiningScript(r rune) bool { return unicode.In(r, joiningScripts...) }
+
+// emojiPart(): 이모지, 이모지에 붙는 변이 선택자(U+FE0F)
+func emojiPart(r rune) bool {
+	switch {
+	case r == 0xFE0F:
+		return true
+	case 0x1F000 <= r && r <= 0x1FAFF:
+		return true
+	case 0x2600 <= r && r <= 0x27BF:
+		return true
+	case 0x2B00 <= r && r <= 0x2BFF:
+		return true
+	}
+	return false
 }
 
 func zeroWidthFinding(name string, off int, where string) Finding {

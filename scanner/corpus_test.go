@@ -24,6 +24,11 @@ var corpus = []struct {
 	{"corpus/github_login.html", "https://github.com/login", 1},
 	{"corpus/inven_login.html", "https://member.inven.co.kr/", 1},
 	{"corpus/nexon_login.html", "https://nxlogin.nexon.com/", 1},
+	{"corpus/wikipedia_ko.html", "https://ko.wikipedia.org/wiki/HTML", 0},
+	{"corpus/donga.html", "https://www.donga.com/", 6},
+	{"corpus/bbc.html", "https://www.bbc.com/news", 5},
+	{"corpus/naver.html", "https://www.naver.com/", 3},
+	{"corpus/neverssl.html", "http://neverssl.com/", 0},
 }
 
 func TestCorpusNoFalsePositive(t *testing.T) {
