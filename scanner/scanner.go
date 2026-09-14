@@ -234,6 +234,12 @@ func (c *Context) OpenForm() (tokenizer.Token, bool) {
 	return *c.stack.form, true
 }
 
+// FormAccepted(): 이 <form> 시작 태그를 브라우저가 사용하는지 확인
+// 이미 열린 form이 있으면 새 form은 무시됨.
+func (c *Context) FormAccepted(tok tokenizer.Token) bool {
+	return c.stack.form != nil && c.stack.form.Offset == tok.Offset
+}
+
 // schemeOf(): URL의 scheme을 소문자로
 func schemeOf(rawURL string) string {
 	if i := strings.Index(rawURL, "://"); 0 <= i {

@@ -33,6 +33,9 @@ func ruleFormActionIP(ctx *Context, tok tokenizer.Token) []Finding {
 	if tok.Type != tokenizer.StartTagToken || tok.Name != "form" {
 		return nil
 	}
+	if !ctx.FormAccepted(tok) {
+		return nil // 중첩 form
+	}
 	action, ok := tok.Attr("action")
 	if !ok {
 		return nil

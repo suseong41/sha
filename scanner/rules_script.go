@@ -87,7 +87,7 @@ func ruleExfilChannel(ctx *Context, tok tokenizer.Token) []Finding {
 		}
 		return nil
 	}
-	if tok.Type == tokenizer.StartTagToken && tok.Name == "form" {
+	if tok.Type == tokenizer.StartTagToken && tok.Name == "form" && ctx.FormAccepted(tok) {
 		action, _ := tok.Attr("action")
 		low := asciiLower(normalizeURL(action))
 		for _, h := range exfilHosts {
