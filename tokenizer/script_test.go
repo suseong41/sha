@@ -47,3 +47,25 @@ func TestScriptEscaped(t *testing.T) {
 		})
 	}
 }
+
+// 스크립트가 켜진 브라우저는 <noscript> 안을 원시 텍스트로 봄.
+func TestNoscriptText(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{"안의태그는텍스트", `<noscript><img src=a.png></noscript>`,
+			[]string{"START:noscript", "TEXT:<img src=a.png>", "END:noscript"}},
+		{"속성값속탈출", `<noscript><p title="</noscript><img src=x onerror=alert(1)>">`,
+			[]string{"START:noscript", `TEXT:<p title="`, "END:noscript", "START:img", `TEXT:">`}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := dump(c.in)
+			if strings.Join(got, "@") != strings.Join(c.want, "@") {
+				t.Errorf("\ninput: %q\ngot:  %q\nwant: %q", c.in, got, c.want)
+			}
+		})
+	}
+}

@@ -52,7 +52,7 @@ func inject(page, snippet, where string) (string, int) {
 		if loc := bodyOpen.FindStringIndex(page); loc != nil {
 			p = loc[1]
 		}
-	case "body-end", "comment", "textarea":
+	case "body-end", "comment", "textarea", "noscript":
 		if locs := bodyClose.FindAllStringIndex(page, -1); locs != nil {
 			p = locs[len(locs)-1][0]
 		}
@@ -62,6 +62,8 @@ func inject(page, snippet, where string) (string, int) {
 		snippet = "<!-- " + snippet + " -->"
 	case "textarea":
 		snippet = "<textarea>" + snippet + "</textarea>"
+	case "noscript":
+		snippet = "<noscript>" + snippet + "</noscript>"
 	}
 	return page[:p] + snippet + page[p:], p
 }
@@ -78,6 +80,7 @@ func TestInjectedAttacks(t *testing.T) {
 		{"body-end", func(bool) bool { return true }},
 		{"comment", func(bool) bool { return false }},
 		{"textarea", func(text bool) bool { return text }},
+		{"noscript", func(text bool) bool { return text }}, // 스크립트가 켜진 브라우저 기준
 	}
 
 	pages := make([]string, len(corpus))

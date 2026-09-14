@@ -63,6 +63,7 @@ var rcdataTags = map[string]bool{"title": true, "textarea": true}
 var rawTextTags = map[string]bool{
 	"script": true, "style": true, "textarea": true, "title": true,
 	"iframe": true, "noembed": true, "noframes": true, "xmp": true,
+	"noscript": true, // 스크립트 켜진 브라우저 기준, 꺼져 있으면 일반 마크업
 }
 
 // Next() - Token 꺼냄.
