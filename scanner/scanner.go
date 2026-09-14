@@ -15,6 +15,7 @@ type Context struct {
 	Domain string
 	stack  openStack
 	cred   credentialTracker
+	forms  map[string]tokenizer.Token // id -> <form> 시작 태그
 }
 
 // Rule: 토큰을 하나씩 보고 발견을 돌려줌.
@@ -146,7 +147,7 @@ func Scan(src string) Result { return ScanURL(src, "") }
 
 func ScanURL(src, pageURL string) Result {
 	z := tokenizer.New(src)
-	ctx := &Context{URL: pageURL, Scheme: schemeOf(pageURL), Domain: domainOf(pageURL)}
+	ctx := &Context{URL: pageURL, Scheme: schemeOf(pageURL), Domain: domainOf(pageURL), forms: collectForms(src)}
 	rules := newRules()
 	var cov coverage
 
@@ -228,6 +229,41 @@ func domainOf(rawURL string) string {
 // In Element, OpenForm 규칙으로만 접근. 스택 직접 건들지 않음.
 // InElement: 현재 열려 있는 조상 중 name이 있는지 확인.
 func (c *Context) InElement(name string) bool { return c.stack.has(name) }
+
+// OwnerForm(): form="id" 속성이 있으면 그 id를 가진 form이 주인. 속성이 없으면 가까운 조상 form.
+func (c *Context) OwnerForm(tok tokenizer.Token) (tokenizer.Token, bool) {
+	if id, ok := tok.Attr("form"); ok {
+		f, found := c.forms[id]
+		return f, found
+	}
+	return c.OpenForm()
+}
+
+// collectForms(): id를 가진 <form>을 미리 모음.
+func collectForms(src string) map[string]tokenizer.Token {
+	forms := map[string]tokenizer.Token{}
+	z := tokenizer.New(src)
+	open := false // 중첩 form은 브라우저가 버림
+	for tok := z.Next(); tok.Type != tokenizer.ErrToken; tok = z.Next() {
+		switch {
+		case tok.Type == tokenizer.EndTagToken && tok.Name == "form":
+			open = false
+		case tok.Type != tokenizer.StartTagToken || tok.Name != "form":
+			continue
+		case open:
+			continue // 중첩
+		default:
+			open = true
+			if id, ok := tok.Attr("id"); ok && id != "" {
+				if _, dup := forms[id]; !dup {
+					forms[id] = tok // 같은 id 여러개
+				}
+			}
+
+		}
+	}
+	return forms
+}
 
 // OpenForm(): 지금 유효한 <form> 시작 태그 반환
 func (c *Context) OpenForm() (tokenizer.Token, bool) {

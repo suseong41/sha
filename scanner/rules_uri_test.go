@@ -47,6 +47,7 @@ func TestFormActionIP(t *testing.T) {
 		{"type=reset", `<form action="/ok"><button type="reset" formaction="http://192.168.0.1/x">x</button></form>`, 0},
 		{"text의formaction", `<form action="/ok"><input type="text" formaction="http://192.168.0.1/x"></form>`, 0},
 		{"form밖버튼", `<button formaction="http://192.168.0.1/x">x</button>`, 0},
+		{"원격버튼(form=id)", `<form id="f" action="/ok"></form><button form="f" formaction="http://192.168.0.1/x">x</button>`, 1},
 		{"formaction도메인", `<form action="/ok"><button formaction="https://b.com/p">x</button></form>`, 0},
 	}
 	for _, c := range cases {

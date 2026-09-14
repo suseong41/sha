@@ -18,7 +18,7 @@ func formDestination(ctx *Context, tok tokenizer.Token) (attr, url string, ok bo
 		}
 		attr = "action"
 	case isSubmitter(tok):
-		if _, inForm := ctx.OpenForm(); !inForm {
+		if _, owned := ctx.OwnerForm(tok); !owned {
 			return "", "", false // form 밖의 버튼은 제출하지 않음.
 		}
 		attr = "formaction"

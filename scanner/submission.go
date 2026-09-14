@@ -15,41 +15,59 @@ type destination struct {
 // credentialTracker: 지금 열린 form에 비밀번호가 있는지, form의 formaction들을 모음.
 // 비밀번호 입력과 제출은 어느 쪽이 먼저 올지 모름.
 type credentialTracker struct {
-	formOff  int           // 추적 중인 form의 Offset
-	password bool          // 이 form에서 비밀번호 입력을 봤는가
-	actions  []destination // 이 form 에서 본 formaction 들
-	exposed  []destination // 이번 토큰에서 새로 비밀번호가 도달하게 된 전송지
+	forms   map[int]*formState // form 시작 태그의 Offset -> 그 폼의 상태
+	exposed []destination      // 이번 토큰에서 새로 비밀번호가 도달하게 된 전송지
+}
+
+// formState: 한 form이 문서 전체에 흩어져 있을 수 있다. (form="id" 원격 연결)
+type formState struct {
+	password bool          // 이 form에 비밀번호 입력이 있었는가
+	actions  []destination // 이 form의 제출 버튼이 선언한 formaction 들
+}
+
+func (c *credentialTracker) state(off int) *formState {
+	if c.forms == nil {
+		c.forms = map[int]*formState{}
+	}
+	st, ok := c.forms[off]
+	if !ok {
+		st = &formState{}
+		c.forms[off] = st
+	}
+	return st
 }
 
 func (c *credentialTracker) observe(ctx *Context, tok tokenizer.Token) {
 	c.exposed = nil
-	form, ok := ctx.OpenForm()
-	if !ok || tok.Type != tokenizer.StartTagToken {
+	if tok.Type != tokenizer.StartTagToken {
 		return
 	}
-	if form.Offset != c.formOff {
-		c.formOff, c.password, c.actions = form.Offset, false, nil // 새 form
+	form, ok := ctx.OwnerForm(tok)
+	if !ok {
+		return
 	}
+	st := c.state(form.Offset)
 
 	switch {
 	case isPasswordInput(tok):
-		if c.password {
-			return // form 전송지를 이미 알린 경우
+		if st.password {
+			return // form 전송지 이미 알음.
 		}
-		c.password = true
+		st.password = true
 		action, _ := form.Attr("action")
 		c.exposed = append(c.exposed, destination{"action", action})
-		c.exposed = append(c.exposed, c.actions...) // 비밀번호보다 먼저 온 버튼들
+		c.exposed = append(c.exposed, st.actions...) // 비밀번호보다 먼저 온 버튼
 	case isSubmitter(tok):
 		v, ok := tok.Attr("formaction")
 		if !ok {
 			return
 		}
 		d := destination{"formaction", v}
-		c.actions = append(c.actions, d)
-		if c.password {
+		st.actions = append(st.actions, d)
+		if st.password {
 			c.exposed = append(c.exposed, d)
 		}
+
 	}
 }
 
