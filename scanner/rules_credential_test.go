@@ -21,6 +21,7 @@ func TestCleartextCredentials(t *testing.T) {
 		{"http페이지+action없음", `<form><input type=password></form>`, "http://a.com/", 1},
 		{"대문자타입", `<form action="http://a.com/x"><input TYPE=PASSWORD></form>`, "https://a.com/", 1},
 		{"문자참조우회", `<form action="&#104;ttp://a.com/x"><input type=password></form>`, "https://a.com/", 1},
+		{"formaction이http", `<form action="https://a.com/login"><input type=password><button formaction="http://a.com/x">x</button></form>`, "https://a.com/", 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

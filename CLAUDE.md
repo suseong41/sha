@@ -126,7 +126,7 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 ```bash
 go build ./...          # _test.go 는 컴파일하지 않는다
 go vet ./...            # 컴파일러가 안 잡는 것 (도달 불가 코드 등)
-go test ./...           # 370개 (서브테스트 포함)
+go test ./...           # 383개 (서브테스트 포함)
 gofmt -l .              # 출력이 있으면 실패
 
 # 퍼징 — 큰 변경 뒤에는 길게
@@ -161,6 +161,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 | 출력에 `-test.v` 같은 플래그가 찍힘 | 코드가 전역 `flag` 를 건드린다 (`flag.PrintDefaults()` 잔존 등) |
 | 테스트 중 발견 줄이 터미널에 찍히고 버퍼가 빔 | `fmt.Printf` 가 주입된 `stdout` 대신 진짜 stdout 에 쓴다 |
 | 수정을 되돌려도 테스트가 전부 통과 | 수정만 넣고 테스트 케이스를 빠뜨렸다 |
+| 건수 테스트는 통과인데 발견 위치가 한 토큰 뒤 | 관찰자·추적기가 규칙보다 **늦게** 호출된다 |
 
 **도구가 못 잡은 실제 결함들** — 테스트가 유일한 방어선이었다:
 `!` 누락(무한 루프) · `s = s`(자기 대입) · `" atob("` 앞 공백 하나 ·
@@ -174,7 +175,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 21종 · 테스트 370개 · 퍼징 5,600만 케이스 무결
+규칙 21종 · 테스트 383개 · 퍼징 5,600만 케이스 무결
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 정상 코퍼스 12쪽: 458건 → 26건 (오탐 41 + 중복 391) · HIGH 0건
 커버리지: main 98.5% (run 100%) · scanner 99.0% · tokenizer 95.1%
@@ -185,20 +186,20 @@ go test ./scanner -run 'Corpus|Malicious' -v
 **29교시** — 코퍼스에 공격 19종 주입 측정(456건 미탐 0) · 중첩 폼 HIGH 오탐 수정(`FormAccepted`).
 **30교시** — `formDestination`·`isSubmitter` 헬퍼(`rules_credential.go`). `form-action-ip`·`exfil-channel` 이
 `<button formaction>`·`<input type=submit|image formaction>` 도 본다. button 은 type 이 button·reset 이 아니면 전부 submit.
-주입 측정 코드는 스크래치패드에만 있다 — 영구 테스트화는 아래 2번.
-**문서(DISCUSSION·Artifact)에는 30교시가 아직 없다** — 31교시와 같은 주제라 함께 기록한다.
+**31교시** — `credentialTracker`(`scanner/submission.go`)가 폼마다 비밀번호 여부·formaction 을 모아
+늦게 온 토큰에서 `ctx.CredentialDestinations()` 로 내놓는다. 비밀번호 규칙 3종은 판정만.
+추적기는 **규칙보다 먼저** 호출(늦으면 발견이 다음 토큰으로 밀림 — `TestCredentialOffset`).
+폼 하나·전송지 하나당 1건(비밀번호 확인 칸이 있어도 1건).
+주입 측정 코드는 스크래치패드에만 있다 — 영구 테스트화는 아래 1번.
 
 ### 다음 (우선순위 순)
 
-1. **비밀번호 규칙 3종의 `formaction` 미탐** — `cross-origin-password-form` · `cleartext-credentials` ·
-   `local-credential-post` 는 아직 0건. 규칙이 `<input type=password>` 시점에 판정하는데
-   버튼(전송지)은 보통 그 **뒤에** 온다 → 폼 하나 동안 "비밀번호 있음"과 "전송지 집합"을 모아 판단하는 구조 필요.
-2. **주입 측정을 영구 테스트로** — 정상 코퍼스 × 공격 조각 × 위치(body 시작·끝, 주석·textarea 대조군).
+1. **주입 측정을 영구 테스트로** — 정상 코퍼스 × 공격 조각 × 위치(body 시작·끝, 주석·textarea 대조군).
    발견 오프셋이 주입 구간 안에 있는지로 판정한다.
-3. `<input form="id">` 원격 연결 — 스택으로는 불가, 트리 + id 인덱스 필요
-4. 전체 트리 구성 — foster parenting, 삽입 모드 23개
-5. punycode 호스트 — 정상 IDN과 구별하려면 혼합 스크립트 판정 필요
-6. eTLD+1 접미사 표 확장 — 24개만 내장. 표에 없으면 마지막 두 라벨로 떨어져 **미탐 방향**
+2. `<input form="id">` 원격 연결 — 스택으로는 불가, 트리 + id 인덱스 필요
+3. 전체 트리 구성 — foster parenting, 삽입 모드 23개
+4. punycode 호스트 — 정상 IDN과 구별하려면 혼합 스크립트 판정 필요
+5. eTLD+1 접미사 표 확장 — 24개만 내장. 표에 없으면 마지막 두 라벨로 떨어져 **미탐 방향**
 
 ### 문서 갱신 규칙
 

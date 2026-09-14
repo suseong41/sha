@@ -14,6 +14,7 @@ type Context struct {
 	Scheme string
 	Domain string
 	stack  openStack
+	cred   credentialTracker
 }
 
 // Rule: 토큰을 하나씩 보고 발견을 돌려줌.
@@ -168,6 +169,7 @@ func ScanURL(src, pageURL string) Result {
 			ctx.stack.end(tok.Name)
 		}
 
+		ctx.cred.observe(ctx, tok)
 		cov.observe(ctx, tok)
 
 		for _, r := range rules {
@@ -232,6 +234,11 @@ func (c *Context) OpenForm() (tokenizer.Token, bool) {
 		return tokenizer.Token{}, false
 	}
 	return *c.stack.form, true
+}
+
+// CredentialDestinations(): 이번 토큰에서 새로 비밀번호가 도달하게 된 전송지들.
+func (c *Context) CredentialDestinations() []destination {
+	return c.cred.exposed
 }
 
 // FormAccepted(): 이 <form> 시작 태그를 브라우저가 사용하는지 확인

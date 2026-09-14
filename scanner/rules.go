@@ -131,20 +131,22 @@ func ruleZeroWidth(ctx *Context, tok tokenizer.Token) []Finding {
 // -- 외부 도메인으로 가는 비밀번호 폼 (H103) ----
 
 func ruleCrossOriginPasswordForm(ctx *Context, tok tokenizer.Token) []Finding {
-	form, ok := credentialForm(ctx, tok)
-	if !ok || ctx.Domain == "" {
+	if ctx.Domain == "" {
 		return nil
 	}
-	action, _ := form.Attr("action")
-	d := absoluteHost(action)
-	if d == "" || isSameOrg(d, ctx.Domain) {
-		return nil
+	var out []Finding
+	for _, dst := range ctx.CredentialDestinations() {
+		d := absoluteHost(dst.url)
+		if d == "" || isSameOrg(d, ctx.Domain) {
+			continue
+		}
+		out = append(out, Finding{
+			Code: "cross-origin-password-form", Class: ClassExfiltration,
+			Title:    "비밀번호 폼이 외부 도메인으로 전송됨",
+			Severity: High,
+			Offset:   tok.Offset,
+			Evidence: ctx.Domain + " → " + d + "  (" + dst.attr + "=" + dst.url + ")",
+		})
 	}
-	return []Finding{{
-		Code: "cross-origin-password-form", Class: ClassExfiltration,
-		Title:    "비밀번호 폼이 외부 도메인으로 전송됨",
-		Severity: High,
-		Offset:   tok.Offset,
-		Evidence: ctx.Domain + " → " + d + "  (action=" + action + ")",
-	}}
+	return out
 }

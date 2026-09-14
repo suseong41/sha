@@ -58,6 +58,7 @@ func TestLocalCredentialPost(t *testing.T) {
 		{"localhost", `<form action="http://localhost:8080/x"><input type=password></form>`, 1},
 		{"루프백IP", `<form action="http://127.0.0.1/x"><input type=password></form>`, 1},
 		{"file", `<form action="file:///tmp/x"><input type=password></form>`, 1},
+		{"formaction루프백", `<form action="/login"><input type=password><button formaction="http://127.0.0.1:8080/">x</button></form>`, 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

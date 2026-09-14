@@ -6,18 +6,6 @@ import (
 	"github.com/suseong41/suseong-html-analyzer/tokenizer"
 )
 
-// credentialForm(): 토큰이 <input type=password>이고, 열린 <form> 안에 있을 때
-// form 시작 태그를 반환.
-func credentialForm(ctx *Context, tok tokenizer.Token) (tokenizer.Token, bool) {
-	if tok.Type != tokenizer.StartTagToken || tok.Name != "input" {
-		return tokenizer.Token{}, false
-	}
-	if v, ok := tok.Attr("type"); !ok || !strings.EqualFold(strings.TrimSpace(v), "password") {
-		return tokenizer.Token{}, false
-	}
-	return ctx.OpenForm()
-}
-
 // formDestination(): 토큰이 폼 전송지를 선언하면 (속성 이름, 값) 반환.
 func formDestination(ctx *Context, tok tokenizer.Token) (attr, url string, ok bool) {
 	if tok.Type != tokenizer.StartTagToken {
@@ -59,27 +47,25 @@ func isSubmitter(tok tokenizer.Token) bool {
 // B. <form> 안에 있을 때,
 // C. 그 폼의 전송이 평문일 때.
 func ruleClearTextCredentials(ctx *Context, tok tokenizer.Token) []Finding {
-	form, ok := credentialForm(ctx, tok)
-	if !ok {
-		return nil
+	var out []Finding
+	for _, dst := range ctx.CredentialDestinations() {
+		v := normalizeURL(dst.url)
+		var why string
+		switch {
+		case strings.HasPrefix(v, "http://"):
+			why = dst.attr + "=" + dst.url
+		case absoluteHost(dst.url) == "" && ctx.Scheme == "http":
+			why = "페이지가 http, " + dst.attr + " 이 상대 경로 (" + dst.url + ")"
+		default:
+			continue
+		}
+		out = append(out, Finding{
+			Code: "cleartext-credentials", Class: ClassExfiltration,
+			Title:    "비밀번호가 평문으로 전송됨",
+			Severity: High, Offset: tok.Offset, Evidence: why,
+		})
 	}
-	action, _ := form.Attr("action")
-	v := normalizeURL(action)
-
-	var why string
-	switch {
-	case strings.HasPrefix(v, "http://"):
-		why = "action=" + action
-	case absoluteHost(action) == "" && ctx.Scheme == "http":
-		why = "페이지가 http, action 이 상대 경로 (" + action + ")"
-	default:
-		return nil
-	}
-	return []Finding{{
-		Code: "cleartext-credentials", Class: ClassExfiltration,
-		Title:    "비밀번호가 평문으로 전송됨",
-		Severity: High, Offset: tok.Offset, Evidence: why,
-	}}
+	return out
 }
 
 // 이름은 비밀번호인데 typ이 password가 아닌경우
@@ -142,28 +128,30 @@ func (r *phishingFlagPage) Finish(ctx *Context) []Finding {
 var localHotst = []string{"localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"}
 
 func ruleLocalCredentialPost(ctx *Context, tok tokenizer.Token) []Finding {
-	form, ok := credentialForm(ctx, tok)
-	if !ok {
-		return nil
-	}
-	action, _ := form.Attr("action")
-	v := normalizeURL(action)
-	if strings.HasPrefix(v, "file://") {
-		return []Finding{{
+	var out []Finding
+	for _, dst := range ctx.CredentialDestinations() {
+		if !isLocalDestination(dst.url) {
+			continue
+		}
+		out = append(out, Finding{
 			Code: "local-credential-post", Class: ClassHardening,
 			Title:    "비밀번호 폼이 로컬 주소로 전송됨",
-			Severity: Medium, Offset: tok.Offset, Evidence: "action=" + action,
-		}}
+			Severity: Medium, Offset: tok.Offset, Evidence: dst.attr + "=" + dst.url,
+		})
 	}
-	host := absoluteHost(action)
+	return out
+}
+
+// isLocalDestination(): file:// 이거나 호스트가 루프백인가.
+func isLocalDestination(url string) bool {
+	if strings.HasPrefix(normalizeURL(url), "file://") {
+		return true
+	}
+	host := absoluteHost(url)
 	for _, h := range localHotst {
 		if host == h {
-			return []Finding{{
-				Code: "local-credential-post", Class: ClassHardening,
-				Title:    "비밀번호 폼이 로컬 주소로 전송됨",
-				Severity: Medium, Offset: tok.Offset, Evidence: "action=" + action,
-			}}
+			return true
 		}
 	}
-	return nil
+	return false
 }
