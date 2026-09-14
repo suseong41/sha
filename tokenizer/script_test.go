@@ -31,6 +31,9 @@ func TestScriptEscaped(t *testing.T) {
 
 		{"문자열속주석", `<script>var s = "<!--";</script>`,
 			[]string{"START:script", `TEXT:var s = "<!--";`, "END:script"}},
+		// <script 문자열은 escaped 상태(<!-- 뒤)에서만 이중 이스케이프를 연다
+		{"문자열속script태그", `<script>document.write('<script src="a.js">')</script><img src=x onerror=alert(1)>`,
+			[]string{"START:script", `TEXT:document.write('<script src="a.js">')`, "END:script", "START:img"}},
 
 		{"style은영향없음", `<style><!--<script></script>--></style>`,
 			[]string{"START:style", `TEXT:<!--<script></script>-->`, "END:style"}},
