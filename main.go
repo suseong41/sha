@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 
@@ -12,29 +14,36 @@ import (
 // map: [키]값{}
 // Printf - 표준 출력 | Fprintf - 원하는 파일에 출력
 
-func main() { os.Exit(run()) }
+func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
-func usage() {
-	out := flag.CommandLine.Output()
-	fmt.Fprintf(out, "사용법: %s [옵션] <htmlfile> [url]\n\n", os.Args[0])
-	flag.PrintDefaults()
+func usage(fs *flag.FlagSet) {
+	out := fs.Output()
+	fmt.Fprintf(out, "사용법: %s [옵션] <htmlfile> [url]\n\n", fs.Name())
+	fs.PrintDefaults()
 	fmt.Fprintf(out, "\n종료 코드: 0-발견 없음 1-발견 있음 2-사용법/입출력 오류")
 }
 
-func run() int {
-	flag.Usage = usage
-	minName := flag.String("min", "info", "최소 심각도 (info|low|medium|high)")
-	className := flag.String("class", "", "분류로 거르기 (exfiltration|execution|origin|supply-chain|evasion|hardening)")
-	showStats := flag.Bool("stats", false, "토큰·태그 통계도 출력")
-	flag.Parse()
+func run(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("suseong-html-analyzer", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.Usage = func() { usage(fs) }
+	minName := fs.String("min", "info", "최소 심각도 (info|low|medium|high)")
+	className := fs.String("class", "", "분류로 거르기 (exfiltration|execution|origin|supply-chain|evasion|hardening)")
+	showStats := fs.Bool("stats", false, "토큰·태그 통계도 출력")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
 
-	if n := flag.NArg(); n < 1 || 2 < n {
-		flag.Usage()
+	if n := fs.NArg(); n < 1 || 2 < n {
+		fs.Usage()
 		return 2
 	}
 	min, ok := scanner.ParseSeverity(*minName)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "알 수 없는 심각도: %q\n", *minName)
+		fmt.Fprintf(stderr, "알 수 없는 심각도: %q\n", *minName)
 		return 2
 	}
 
@@ -43,16 +52,16 @@ func run() int {
 	if filterClass {
 		c, ok := scanner.ParseClass(*className)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "알 수 없는 분류: %q\n", *className)
+			fmt.Fprintf(stderr, "알 수 없는 분류: %q\n", *className)
 			return 2
 		}
 		class = c
 	}
 
-	path, pageURL := flag.Arg(0), flag.Arg(1)
+	path, pageURL := fs.Arg(0), fs.Arg(1)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderr, err)
 		return 2
 	}
 
@@ -73,17 +82,16 @@ func run() int {
 	})
 
 	for _, f := range findings {
-		fmt.Printf("%s:%d:%d: %-6s %-13s [%s] %s\n",
+		fmt.Fprintf(stdout, "%s:%d:%d: %-6s %-13s [%s] %s\n",
 			path, f.Line, f.Col, f.Severity, f.Class, f.Code, f.Evidence)
 	}
 
 	if *showStats {
-		printStats(res)
+		printStats(stderr, res)
 	}
-	fmt.Fprintf(os.Stderr, "\n%s - 발견 %d건\n", path, len(findings))
-
+	fmt.Fprintf(stderr, "\n%s - 발견 %d건\n", path, len(findings))
 	for _, n := range res.Notes {
-		fmt.Fprintf(os.Stderr, "참고: %s\n", n)
+		fmt.Fprintf(stderr, "참고: %s\n", n)
 	}
 
 	if len(findings) == 0 {
@@ -92,8 +100,7 @@ func run() int {
 	return 1
 }
 
-func printStats(res scanner.Result) {
-	out := os.Stderr
+func printStats(out io.Writer, res scanner.Result) {
 	fmt.Fprintf(out, "\n토큰: %v\n", res.Tokens)
 	names := make([]string, 0, len(res.Tags))
 	for n := range res.Tags {
