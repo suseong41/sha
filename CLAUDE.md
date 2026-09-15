@@ -56,6 +56,7 @@ fetcher/       SSRF 방어 수집기 — addr.go(주소 판정) · fetch.go(Dial
 web/           JSON API — POST /api/scan (my_homepage 의 nginx 뒤에서 돈다)
 cmd/webscan/   API 서버 진입점 — http.Server 타임아웃 · -addr
 Dockerfile     멀티 스테이지 → scratch · .dockerignore 는 허용 목록
+docs/INTEGRATION.md  my_homepage 연동 명세 — API 계약 · 그리는 쪽 보안 규칙 · compose · nginx · Cloudflare · 검증 기록
 tools/         measure.sh — 실전 측정 (받은 페이지는 testdata/live/, 커밋 안 함)
 old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음)
 testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · spa_shell.html
@@ -238,7 +239,9 @@ go test ./scanner -run 'Corpus|Malicious' -v
 >     Cloudflare 를 우회해 원서버를 직접 칠 수 있다. 대응: 원서버 80/443 을 **Cloudflare 대역만 허용** ·
 >     또는 SHA 의 나가는 연결을 **다른 IP(프록시/VPN)** 로 — 위협 표의 "우리 IP 노출" 행이 여기서 현실이 된다.
 >   - 이미지의 CA 인증서 묶음은 **나가는 쪽**(스캔 대상 검증)용이다. 사이트의 Cloudflare 인증서(들어오는 쪽, nginx)와 무관.
-> **이 저장소 쪽 남은 일**: ~~Dockerfile~~(53교시) · 명세 문서 · Artifact 따라잡기(§12.28·§12.29).
+> **이 저장소 쪽 남은 일**: ~~Dockerfile~~(53교시) · ~~명세 문서~~ → **`docs/INTEGRATION.md`** · Artifact 따라잡기(§12.28·§12.29·§12.30·§12.31).
+> 명세의 설정·코드는 전부 compose 로 띄워 검증했고, 문서에서 코드 블록을 뽑아 다시 돌려 옮겨 적기 오류도 확인했다.
+> **명세를 고칠 때도 같은 방식으로 다시 검증한다** (7절 검증 기록 표를 함께 갱신).
 > **Go 버전 (2026-09-15 측정)**: go1.24.6 은 지원 종료 줄. `govulncheck -mode=binary` 로 **우리 코드가 호출하는 표준 라이브러리
 > 취약점 26건**(net/url · net/http · crypto/tls · crypto/x509 · net — fetcher 경로). go1.27.1 은 0건, 테스트 638개 그대로 통과.
 > 1.24.6 을 고른 이유는 go.mod·로컬과 맞추기였고 **지원 상태를 확인하지 않은 내 실수**. → go.mod `go 1.27.1`
