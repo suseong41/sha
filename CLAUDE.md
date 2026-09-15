@@ -67,7 +67,7 @@ testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · 
 **둘 다 오탐/미탐의 바다가 되어 실패했다.** 그 원인 분석이 `DISCUSSION.md` 9절이다.
 
 설계 논의 전문: [DISCUSSION.md](DISCUSSION.md) ·
-Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 21)
+Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 22)
 
 ---
 
@@ -140,6 +140,7 @@ go test ./...           # 642개 (서브테스트 포함) · 주입 테스트 �
 go test -short ./...    # 주입 테스트 건너뜀 — 고치는 중에 자주 돌릴 때
 gofmt -l .              # 출력이 있으면 실패
 docker build -t sha .   # 실행 이미지 (scratch · 비루트 · https 인증서)
+go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...   # 알려진 취약점 — CI vuln 잡이 푸시·주간에 돌린다
 
 # 퍼징 — 큰 변경 뒤에는 길게
 go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 5m
@@ -497,6 +498,14 @@ CI 도 `go-version-file: go.mod` 이라 1.24.6 으로 돌고 있었다. → go.m
 **사용자 코드에서 로그 필드 줄(`findings`·`notes`·`bytes`)이 빠졌는데 테스트가 통과했다** — 내 테스트가 네 필드만 봤다.
 명세 6절에 필드를 약속하므로 단언을 넣었다(`log_test.go` 는 사용자 위임으로 내가 고침). 명세 6절의 "로그를 남기지 않는다"를 실제 이미지 `docker logs` 로 재검증해 고쳤다.
 **사고**: 사용자 `handler.go` 가 에디터 되돌리기로 옛 오타(`appictaion`)까지 되살아나 깨졌다 — 차이가 전부 손상뿐이라 백업 후 `git checkout` 으로 복구(위임).
+
+**CI `vuln` 잡** (54교시 뒤) — `govulncheck@v1.8.0 ./...` 를 푸시·PR·**주간 schedule** 에서. 취약점은 코드가 그대로여도 새로 알려진다.
+`setup-go` 가 go.mod 버전을 깔므로 새 패치가 취약점을 고치면 이 잡이 실패해 go.mod 을 올리라고 알린다(의도된 빨간불).
+도구는 고정해도 취약점 목록은 매번 온라인에서 받는다. GitHub Actions 첫 실행 `No vulnerabilities found.` (2026-09-16).
+검증: 지금 코드 종료 코드 0 · 1.24.6 바이너리 대조군 26건 비0 · actionlint 0 / `runs_on` 오타 대조군 1.
+**측정 실수 둘**: 첫 대조군은 go.mod 이 1.27.1 을 요구해 1.24.6 빌드가 안 된 것(무효) · "actionlint 문제 없음"은
+git 저장소가 아니라 시작도 못 한 걸 `| head &&` 가 가렸다(§6 표에 기록). `go run` 은 govulncheck 의 종료 코드 3 을 1 로 바꾼다.
+사용자가 붙인 블록이 저장되지 않아 커밋에 빠졌다 → 위임받아 내가 넣음(CR 0 · actionlint 0).
 
 1. **다음 방향 미정** — 남은 보류: foster parenting(트리) · eTLD+1 표 확장 · 단일 체계 위조 ·
    HIGH 규칙들은 실측 기회가 없다(정상 사이트에 안 나오는 게 정상).

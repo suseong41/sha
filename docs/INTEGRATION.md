@@ -365,7 +365,7 @@ Cloudflare 를 앞에 두는 이유 중 하나는 **원서버 IP 를 숨기는 �
 docker compose build --pull sha && docker compose up -d sha
 ```
 
-Go 버전 줄 자체(1.27)는 지원 기간이 끝나기 전에 SHA 저장소에서 올린다. 확인은 SHA 저장소에서 한다.
+Go 버전 줄 자체(1.27)는 지원 기간이 끝나기 전에 SHA 저장소에서 올린다. SHA 저장소의 CI 가 푸시할 때와 매주 한 번 아래 검사를 돌리고, 알려진 취약점이 있으면 실패한다.
 
 ```bash
 go run golang.org/x/vuln/cmd/govulncheck@latest ./...
