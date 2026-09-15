@@ -77,9 +77,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		findings = append(findings, f)
 	}
-	sort.SliceStable(findings, func(i, j int) bool {
-		return findings[j].Severity < findings[i].Severity
-	})
+	scanner.SortBySeverity(findings)
 
 	for _, f := range findings {
 		fmt.Fprintf(stdout, "%s:%d:%d: %-6s %-13s [%s] %s\n",

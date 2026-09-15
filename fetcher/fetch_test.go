@@ -164,7 +164,7 @@ func TestGetRejectsOversizedBody(t *testing.T) {
 }
 
 // 경계: 상한과 정확히 같은 크기는 통과해야 함.
-func TestGetAcceptBodytAtExactLimit(t *testing.T) {
+func TestGetAcceptsBodyAtExactLimit(t *testing.T) {
 	body := strings.Repeat("a", 20)
 	srv := serve(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(body))

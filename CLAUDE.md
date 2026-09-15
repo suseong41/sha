@@ -53,7 +53,8 @@ main.go        CLI — 파일 읽기 · 스캔 호출 · 출력만
 tokenizer/     ① WHATWG 토크나이저 (브라우저와 동일하게 해석)
 scanner/       규칙 계층 — scanner.go(엔진) + rules_*.go(규칙)
 fetcher/       SSRF 방어 수집기 — addr.go(주소 판정) · fetch.go(DialContext·상한·리다이렉트)
-report/        결과 HTML — html/template · 상수 템플릿 · 자기 스캔 테스트
+web/           JSON API — POST /api/scan (my_homepage 의 nginx 뒤에서 돈다)
+cmd/webscan/   API 서버 진입점 — http.Server 타임아웃 · -addr
 tools/         measure.sh — 실전 측정 (받은 페이지는 testdata/live/, 커밋 안 함)
 old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음)
 testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · spa_shell.html
@@ -131,7 +132,7 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 ```bash
 go build ./...          # _test.go 는 컴파일하지 않는다
 go vet ./...            # 컴파일러가 안 잡는 것 (도달 불가 코드 등)
-go test ./...           # 631개 (서브테스트 포함) · 주입 테스트 포함 약 10초
+go test ./...           # 638개 (서브테스트 포함) · 주입 테스트 포함 약 10초
 ./tools/measure.sh      # 실제 웹 50곳에 대본다 (받은 페이지는 커밋하지 않는다)
 ./tools/measure.sh -f   #   모두 다시 받는다
 go test -short ./...    # 주입 테스트 건너뜀 — 고치는 중에 자주 돌릴 때
@@ -173,6 +174,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 | 고친 줄이 반영 안 된 것 같은 테스트 결과 | 에디터에서 **저장하지 않았다** (`go test` 는 디스크를 본다) |
 | 결함을 심었는데 "안 잡힘" | 측정 스크립트가 **빌드 실패**를 `--- FAIL` 로 세지 않았다 |
 | `sed -n '/시작/,/^}/p'` 결과가 잘림 | `}{` 같은 줄이 범위 끝으로 오인된다. 읽지 말고 **실행해서 값을 찍어라** |
+| **스크래치패드 명령이 사용자 저장소를 바꿈** | `cd 스크래치패드 && …` 가 실패하면 **다음 줄부터는 이전 작업 디렉터리에서** 돈다. 스크래치패드는 세션 중에 비워질 수 있다(2026-09-15 실제로 `perl -pi` 가 `main.go` 를 고침 — `git diff` 로 한 줄뿐임을 확인하고 되돌림). 검증 스크립트는 **`set -e` + 절대 경로 + `mkdir -p` 먼저** |
 
 **도구가 못 잡은 실제 결함들** — 테스트가 유일한 방어선이었다:
 `!` 누락(무한 루프) · `s = s`(자기 대입) · `" atob("` 앞 공백 하나 ·
@@ -186,17 +188,38 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 23종 · 테스트 631개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
+규칙 23종 · 테스트 638개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 실전 43쪽 측정: 393건 → 115건 · HIGH 0건 | 커버리지 main 98.5% · scanner 99.0% · tokenizer 95.1%
-패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · report(50교시, 출력 이스케이프)
+패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · web(51~52교시, JSON API) · cmd/webscan
 ```
 
-> 26~50교시의 상세는 **DISCUSSION.md 12절**에 있다. 아래 요약은 압축 후 방향을 잃지 않기 위한 것이다.
+> 26~52교시의 상세는 **DISCUSSION.md 12절**에 있다. 아래 요약은 압축 후 방향을 잃지 않기 위한 것이다.
 
 ---
 
-### ▶ 다음 할 일 — 도구에서 서비스로 (2026-09-15 결정)
+### ▶ 다음 할 일 — 도구에서 서비스로 (2026-09-15 결정 · 같은 날 배포 구조 확정으로 수정)
+
+> **배포 구조 (사용자 확인, `/Users/suseong/test/my_homepage` 를 읽어 확인):**
+> ```
+> 브라우저 ─443─▶ nginx ─┬─ /             정적 html/index.html (페이지는 my_homepage 가 담당)
+>                        ├─ /api/…        ▶ api:8000  (FastAPI, expose 만)
+>                        └─ /api/scan     ▶ sha:8080  (이 Go 프로젝트, expose 만) ← 붙일 것
+> ```
+> SHA 는 my_homepage 의 `tools/SHA` 로 들어가 **Docker 로 뜨고 내부 통신**한다. **Go 는 HTML 이 아니라 JSON 을 돌려준다.**
+> **내 실수**: 51교시에서 Go 가 페이지 자체를 서빙한다고 가정하고 폼 페이지·`report` 패키지를 만들었다.
+> 웹 계층을 짜기 전에 **배포 구조를 먼저 물었어야 했다.** → `report/` 와 폼 페이지는 사용자 위임으로 삭제(52교시 직전).
+> **API 로 바뀌어도 책임은 사라지지 않고 옮겨 간다:**
+> - 출력 이스케이프(50교시) → **`index.html` 의 JS**. 현재 `repoCardHtml`·`postCardHtml` 이 템플릿 리터럴을 `innerHTML` 에
+>   이스케이프 없이 넣는다(`html/index.html:617-619`, `708-710`). 자기 데이터라 지금은 위험이 낮지만 **스캔 증거를
+>   같은 방식으로 붙이면 suseong.org 에 XSS.** `marked.parse` → `innerHTML` 도 같은 패턴(marked 는 소독 안 함).
+> - CSP·보안 헤더 → **nginx** (현재 `nginx.conf` 에 보안 헤더 0개). 남용 방지 → **nginx `limit_req`** (Go 는 nginx IP 만 본다).
+> - SSRF 방어는 Go 에 그대로이고 Docker 에서 **더 중요**: compose 서비스 이름은 `172.18.0.x`(private), 내장 DNS 는
+>   `127.0.0.11`(loopback) — 47교시 판정이 이미 막는다. 문자열 검사였다면 `http://api:8000/` 이 통과했다.
+> - 컨테이너 안에서는 `-addr 0.0.0.0:8080` (127.0.0.1 이면 nginx 가 못 닿는다). 외부 차단은 compose 의 `expose`.
+>
+> **새 순서**: ~~**52교시** JSON API + 정렬을 `scanner.SortBySeverity` 로~~ **완료** · **53교시** `index.html` 에서 결과를 안전하게 그리기
+> (`textContent`·`createElement`) · **54교시** 배포(Dockerfile 멀티 스테이지·비루트, compose 서비스, nginx 헤더·`limit_req`).
 
 사용자의 목표: **포트폴리오 웹 페이지에서 URL 을 입력받아 `curl` 로 가져와 스캔하고 결과를 보여준다.**
 
@@ -388,6 +411,28 @@ TLS 는 안전하다: `DialContext` 는 맨 TCP 만 돌려주고 인증서·SNI 
 나머지 둘(증거·URL 을 `<code>` 밖으로)은 **이스케이프 결과가 똑같다** — 둘 다 HTML 본문 문맥이라 순전한 표현 선택이다.
 여기에 테스트를 붙이면 마크업을 고정시키는 족쇄가 된다. **변이 검사는 후보를 내놓을 뿐, "이게 깨지면 무엇이 위험해지는가"는 내가 판단한다.**
 CSP 는 2차 방어선이고 **브라우저 동작은 여기서 검증할 수 없다** — 테스트는 그 줄이 있는지만 본다.
+
+**51교시** — `web/handler.go` · `cmd/webscan`. **신뢰 경계** — 들어오는 것은 좁히고(`MaxBytesReader` 파싱 전 ·
+URL 2048자 · `r.Context()` 전달), 나가는 것은 해석을 못박는다(CSP·nosniff 를 **모든 응답**에 — 미들웨어).
+**오류 상세를 내보내지 않는다** — `intranet(10.1.2.3) 로는 접속하지 않는다` 는 내부 DNS 조회 창구가 된다.
+`http.Server` 에 타임아웃(`ReadHeaderTimeout` — slowloris), `WriteTimeout` 은 가져오기 상한(10초)보다 길게.
+**동등 변이**를 처음 만났다: 결과 `Content-Type` 설정을 지워도 `net/http` 가 본문을 보고 **같은 값**을 채운다 — 테스트로 구별 불가.
+코드에는 남긴다(우리가 정할 값이다), 테스트는 요구하지 않는다.
+**52교시(구조 변경)** — 배포 구조가 확정돼(my_homepage nginx 뒤) **HTML 서빙 → JSON API** (`POST /api/scan`).
+`report/`·폼 페이지는 사용자 위임으로 삭제. 정렬을 CLI 에서 `scanner.SortBySeverity` 로 내렸다(보여주는 곳이 둘).
+**증거는 JSON 에 원본 그대로** — 이스케이프는 그리는 자리의 일이다. 여기서 `&lt;` 로 바꾸면 받는 쪽 `textContent` 가 글자로
+`&lt;` 를 보여준다. 대신 `encoding/json` 이 `<` 를 `<` 로 써서 응답 바이트엔 날것의 `<` 가 없다.
+**JSON Content-Type 만 받는다** — 폼 형식은 다른 사이트의 `<form>` 이 방문자 브라우저로 보낼 수 있다(교차 출처 JSON 은 preflight).
+빈 결과도 `[]`(nil 슬라이스는 `null` — 받는 JS 가 `.length` 에서 터진다).
+**정렬 테스트가 아무것도 지키지 못했다**: 표본의 LOW 가 집계 규칙(`inline-handler`)이라 **`Finish` 에서** 나오므로 정렬 전부터
+HIGH 가 첫 줄이었다. 정렬 전 순서가 MEDIUM→HIGH 인 표본(`eval(atob)` 먼저)으로 바꿨다.
+`sort.Slice` 는 **원소 12개 이하면 안정적으로 동작**(13개부터 흔들림) — `SliceStable→Slice` 변이는 살려 둔다(같은 심각도 안 순서일 뿐).
+**사용자 오타 둘이 서로를 가렸다**: 테스트 경로 `/ap/scan`(→ 404) 뒤에 코드의 `"appictaion/json"`(→ 전부 415)이 숨어 있었다.
+그리고 **`TestScanRequiresJSONContentType` 은 통과했다** — 전부 거절하는 코드는 "나쁜 것을 거절하는가"만 묻는 테스트를 통과한다.
+반대 방향(좋은 요청이 200)을 묻는 테스트가 잡았다. §5 "두 방향을 같이 건다"의 API 판.
+**코드와 테스트가 맞춰야 하는 약속(헤더 이름·미디어 타입)은 각자 따로 적는다** — 상수로 묶으면 둘이 같이 틀려도 통과한다
+(49교시 "리터럴은 한 번만"은 **테스트 안에서만** 쓰는 설정값 얘기다).
+변이 검사 17/17 · web 커버리지 97.4%.
 
 1. **다음 방향 미정** — 남은 보류: foster parenting(트리) · eTLD+1 표 확장 · 단일 체계 위조 ·
    HIGH 규칙들은 실측 기회가 없다(정상 사이트에 안 나오는 게 정상).
