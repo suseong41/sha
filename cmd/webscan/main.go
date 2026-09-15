@@ -4,8 +4,9 @@ package main
 
 import (
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/suseong41/suseong-html-analyzer/fetcher"
@@ -17,14 +18,20 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:8080", "들을 주소")
 	flag.Parse()
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           web.New(&fetcher.Fetcher{}),
+		Handler:           web.New(&fetcher.Fetcher{}, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
+		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
 	}
-	log.Printf("http://%s", *addr)
-	log.Fatal(srv.ListenAndServe())
+	logger.Info("listening", "addr", *addr)
+	if err := srv.ListenAndServe(); err != nil {
+		logger.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
 }

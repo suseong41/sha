@@ -274,3 +274,19 @@ func TestGetRejectRedirectToNonHTTPSchme(t *testing.T) {
 		t.Errorf("우리가 막은 게 아님: %v", err)
 	}
 }
+
+func TestErrorsCanBeClassified(t *testing.T) {
+	f := Fetcher{lookup: fixedLookup("10.1.2.3"), dial: mustNotDial(t)}
+	if _, err := f.Get(context.Background(), "http://intranet.corp/"); !errors.Is(err, ErrBlocked) {
+		t.Errorf("차단인데 ErrBlocked 가 아니다: %v", err)
+	}
+
+	srv := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(strings.Repeat("a", 100)))
+	})
+	fb := toServer(srv)
+	fb.MaxBytes = 10
+	if _, err := fb.Get(context.Background(), "http://big.example/"); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("상한 초과인데 ErrTooLarge 가 아니다: %v", err)
+	}
+}

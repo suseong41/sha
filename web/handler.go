@@ -2,10 +2,15 @@ package web
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"mime"
+	"net"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/suseong41/suseong-html-analyzer/fetcher"
 	"github.com/suseong41/suseong-html-analyzer/scanner"
@@ -22,13 +27,21 @@ const csp = "default-src 'none'; frame-ancestors 'none'"
 
 type fetchFunc func(ctx context.Context, rawURL string) (*fetcher.Page, error)
 
-type handler struct{ fetch fetchFunc }
+type handler struct {
+	fetch fetchFunc
+	log   *slog.Logger
+}
 
 // New(): 진짜 수집기를 쓰는 핸들러.
-func New(f *fetcher.Fetcher) http.Handler { return newHandler(f.Get) }
+func New(f *fetcher.Fetcher, log *slog.Logger) http.Handler { return newLoggedHandler(f.Get, log) }
 
+// newHandler(): 로그를 버리는 핸들러.
 func newHandler(fetch fetchFunc) http.Handler {
-	h := &handler{fetch: fetch}
+	return newLoggedHandler(fetch, slog.New(slog.DiscardHandler))
+}
+
+func newLoggedHandler(fetch fetchFunc, log *slog.Logger) http.Handler {
+	h := &handler{fetch: fetch, log: log}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/scan", h.scan)
 	return secureHeaders(mux)
@@ -75,9 +88,46 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+// 넘기는 것: 결과(상태, 종류, 건수, 시간)와 대상의 scheme, host
+// 넘기지 않는 것: 경로, 쿼리, 조각, userinfo, 요청, 본문, 오류 문자열
+
+// schemeHost(): URL 에서 로그에 남겨도 되는 부분만.
+func schemeHost(raw string) (scheme, host string) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", ""
+	}
+	return u.Scheme, u.Host
+}
+
+// failureReason(): 가져오기 실패를 종류별로 분리
+func failureReason(err error) string {
+	var dnsErr *net.DNSError
+	var certErr *tls.CertificateVerificationError
+	var netErr net.Error
+	switch {
+	case errors.Is(err, fetcher.ErrBlocked):
+		return "blocked"
+	case errors.Is(err, fetcher.ErrTooLarge):
+		return "too_large"
+	case errors.As(err, &dnsErr):
+		return "dns"
+	case errors.As(err, &certErr):
+		return "tls"
+	case errors.As(err, &netErr) && netErr.Timeout():
+		return "timeout"
+	}
+	return "other"
+}
+
+func (h *handler) reject(w http.ResponseWriter, status int, reason, msg string) {
+	h.log.Info("scan rejected", "status", status, "reason", reason)
+	writeJSON(w, status, errorResponse{msg})
+}
+
 func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || mt != "application/json" {
-		writeJSON(w, http.StatusUnsupportedMediaType, errorResponse{"Content-Type 은 application/json 이어야 함"})
+		h.reject(w, http.StatusUnsupportedMediaType, "content_type", "Content-Type 은 application/json 이어야 함")
 		return
 	}
 
@@ -88,16 +138,20 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &tooBig) {
 			status = http.StatusRequestEntityTooLarge
 		}
-		writeJSON(w, status, errorResponse{http.StatusText(status)})
+		h.reject(w, status, "body", http.StatusText(status))
 		return
 	}
 	if req.URL == "" || maxURLLen < len(req.URL) {
-		writeJSON(w, http.StatusBadRequest, errorResponse{"url 은 1~2048자"})
+		h.reject(w, http.StatusBadRequest, "url_length", "url 은 1~2048자")
 		return
 	}
 
+	start := time.Now()
+	scheme, host := schemeHost(req.URL)
 	page, err := h.fetch(r.Context(), req.URL)
 	if err != nil {
+		h.log.Warn("scan", "status", http.StatusBadGateway, "reason", failureReason(err),
+			"scheme", scheme, "host", host, "ms", time.Since(start).Milliseconds())
 		writeJSON(w, http.StatusBadGateway, errorResponse{"가져오지 못함"})
 		return
 	}
@@ -114,5 +168,9 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	out.Notes = append(out.Notes, res.Notes...)
+	_, finalHost := schemeHost(page.URL)
+	h.log.Info("scan", "status", http.StatusOK, "scheme", scheme, "host", host, "final_host", finalHost,
+		"findings", len(res.Findings), "notes", len(res.Notes), "bytes", len(page.Body),
+		"ms", time.Since(start).Milliseconds())
 	writeJSON(w, http.StatusOK, out)
 }

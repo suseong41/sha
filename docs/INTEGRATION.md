@@ -81,7 +81,7 @@ Content-Type: application/json
 | 502 | SHA | JSON | 가져오지 못함 — 내부 주소·차단된 주소·연결 실패·시간 초과·5MB 초과 **전부 같은 메시지** |
 | 404 · 405 | SHA | **text/plain** | 경로나 메서드가 틀림 |
 
-502 의 원인을 일부러 구별해 주지 않는다. `intranet(10.1.2.3) 로는 접속하지 않는다` 같은 상세를 돌려주면, 우리 서버가 **내부 DNS 를 대신 조회해 주는 창구**가 된다.
+502 의 원인을 일부러 구별해 주지 않는다. `intranet(10.1.2.3) 로는 접속하지 않는다` 같은 상세를 돌려주면, 우리 서버가 **내부 DNS 를 대신 조회해 주는 창구**가 된다. 원인은 응답 대신 **SHA 의 서버 로그**에 종류로 남는다(6절).
 
 ---
 
@@ -371,7 +371,23 @@ Go 버전 줄 자체(1.27)는 지원 기간이 끝나기 전에 SHA 저장소에
 go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 ```
 
-**SHA 는 지금 요청 로그를 남기지 않는다.** 누가 무엇을 스캔했는지는 nginx 접속 로그로만 알 수 있다. 502 의 원인도 응답에서 일부러 숨기므로 서버 쪽에서도 보이지 않는다. 알려진 부족함이다.
+**SHA 는 요청마다 JSON 한 줄을 표준 출력에 남긴다** — `docker compose logs sha` 로 본다.
+
+```json
+{"time":"…","level":"INFO","msg":"scan","status":200,"scheme":"https","host":"example.com","final_host":"example.com","findings":0,"notes":0,"bytes":559,"ms":171}
+{"time":"…","level":"WARN","msg":"scan","status":502,"reason":"blocked","scheme":"http","host":"192.168.0.1","ms":0}
+{"time":"…","level":"INFO","msg":"scan rejected","status":415,"reason":"content_type"}
+```
+
+| 필드 | 뜻 |
+|---|---|
+| `reason` (502) | `blocked` 내부·예약 주소 · `dns` 이름 해석 실패 · `tls` 인증서 검증 실패 · `timeout` 시간 초과 · `too_large` 5MB 초과 · `other` 그 밖 |
+| `reason` (거절) | `content_type` · `body`(본문이 JSON 이 아니거나 4KB 초과) · `url_length` |
+| `host` · `final_host` | 대상과 리다이렉트 뒤 최종 대상의 **호스트(포트 포함)만** |
+
+**일부러 남기지 않는 것:** URL 의 경로·쿼리·조각·계정 정보, 요청 본문, 오류 문자열(사용자가 넣은 URL 이 통째로 들어 있다), 방문자 IP(SHA 는 nginx 의 IP 만 본다 — 방문자 IP 는 nginx 접속 로그에 있다). 사람들이 비밀번호 재설정 링크 같은 것을 넣어 볼 수 있기 때문이다. 이 로그를 다른 곳으로 보내더라도 필드를 더하지 않는다.
+
+한 줄에 JSON 하나라서, 공격자가 고른 문자열에 줄바꿈이 섞여도 가짜 로그 줄이 생기지 않는다.
 
 **SHA 에는 상태 확인용 경로가 없다.** compose `healthcheck` 는 넣지 않았다. 실행 이미지에 셸과 `curl` 이 없어서 컨테이너 안에서 확인 명령을 돌릴 수도 없다.
 
@@ -398,6 +414,7 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 | 2절 대조군(`innerHTML`) | 같은 데이터 | `<img onerror>`·`<svg onload>` 요소가 만들어짐 |
 | 2절 `scanUrl` | 띄운 스택에 실제 요청 (200 · 502 · 413 · 429 · 연결 실패) | 전부 기대한 결과 |
 | 현재 index.html | SHA CLI 로 스캔 | `sri-missing` 1건 (563행 marked) |
+| 요청 로그 (6절) | 실제 이미지를 `--read-only --cap-drop ALL` 로 띄워 `docker logs` 확인. 토큰이 든 URL·내부 주소·폼 형식 요청 | JSON 한 줄씩, `reason` 기록, `SECRET` 0건 |
 | SSRF — Docker 네트워크 안의 내부 서비스 | 같은 네트워크의 `api` 를 방어 켠/끈 이미지로 스캔 (SHA 저장소 53교시) | 켬 502 / 끔 200 |
 
 **확인하지 못한 것**

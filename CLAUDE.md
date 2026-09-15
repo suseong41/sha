@@ -134,7 +134,7 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 ```bash
 go build ./...          # _test.go 는 컴파일하지 않는다
 go vet ./...            # 컴파일러가 안 잡는 것 (도달 불가 코드 등)
-go test ./...           # 638개 (서브테스트 포함) · 주입 테스트 포함 약 10초
+go test ./...           # 642개 (서브테스트 포함) · 주입 테스트 포함 약 10초
 ./tools/measure.sh      # 실제 웹 50곳에 대본다 (받은 페이지는 커밋하지 않는다)
 ./tools/measure.sh -f   #   모두 다시 받는다
 go test -short ./...    # 주입 테스트 건너뜀 — 고치는 중에 자주 돌릴 때
@@ -191,13 +191,13 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 23종 · 테스트 638개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
+규칙 23종 · 테스트 642개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 실전 43쪽 측정: 393건 → 115건 · HIGH 0건 | 커버리지 main 98.5% · scanner 99.0% · tokenizer 95.1%
 패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · web(51~52교시, JSON API) · cmd/webscan
 ```
 
-> 26~53교시의 상세는 **DISCUSSION.md 12절**에 있다. 아래 요약은 압축 후 방향을 잃지 않기 위한 것이다.
+> 26~54교시의 상세는 **DISCUSSION.md 12절**에 있다. 아래 요약은 압축 후 방향을 잃지 않기 위한 것이다.
 
 ---
 
@@ -247,6 +247,15 @@ go test ./scanner -run 'Corpus|Malicious' -v
 > 1.24.6 을 고른 이유는 go.mod·로컬과 맞추기였고 **지원 상태를 확인하지 않은 내 실수**. → go.mod `go 1.27.1`
 > (로컬 `GOTOOLCHAIN=auto` 라 자동 전환 확인 · CI 는 `go-version-file: go.mod`) · Dockerfile `golang:1.27-alpine`(패치는 재빌드 때 따라옴).
 > 공식 golang 이미지는 `GOTOOLCHAIN=local` 이라 자동 전환 안 됨.
+> **나중 계획 (2026-09-16 사용자): Docker Hub 에 이미지를 올려 소스 없이 바로 쓰게 한다.** 그때 확인할 것:
+> - **아키텍처** — 이 Mac 에서 빌드한 `sha:latest` 는 `linux/arm64` 뿐(확인함). amd64 서버에서는 안 돈다 →
+>   `docker buildx build --platform linux/amd64,linux/arm64`. 빌드 단계에 `--platform=$BUILDPLATFORM` + `TARGETOS/TARGETARCH`
+>   로 교차 컴파일하면 에뮬레이션 없이 빠르다(CGO_ENABLED=0 이라 가능) — **아직 재지 않았다.**
+> - **남이 돌리는 이미지는 스스로 갱신되지 않는다** — CA 인증서·Go 패치가 빌드 시점에 굳는다. 올린 뒤에는 정기 재빌드와
+>   CI `govulncheck` 가 선택이 아니게 된다. `latest` 만 올리지 말고 버전 태그도.
+> - **받는 사람의 노출** — README 가 `-p 127.0.0.1:8080:8080` 을 쓰는 이유를 적어야 한다. `-p 8080:8080` 으로 열면
+>   그 사람 서버가 **아무나 쓰는 페이지 가져오기 중계기**가 되고, 스캔 대상에 그 사람 IP 가 찍힌다.
+> - 그때 README 의 Docker 절은 `docker build` 대신 `docker run <이름>:<태그>` 로 바뀐다.
 
 사용자의 목표: **포트폴리오 웹 페이지에서 URL 을 입력받아 `curl` 로 가져와 스캔하고 결과를 보여준다.**
 
@@ -475,6 +484,18 @@ HIGH 가 첫 줄이었다. 정렬 전 순서가 MEDIUM→HIGH 인 표본(`eval(a
 CI 도 `go-version-file: go.mod` 이라 1.24.6 으로 돌고 있었다. → go.mod `go 1.27.1`(로컬 `GOTOOLCHAIN=auto` 자동 전환 확인,
 공식 golang 이미지는 `local` 이라 안 됨) · Dockerfile `golang:1.27-alpine`(**줄로 적어 재빌드 때 패치를 따라간다** — 정확한 고정이 26건을 쌓았다).
 **측정하다 한 실수**: "조회만"이라며 `docker run --pull=missing` 으로 이미지 4개를 받았다 — 쓸 것만 남기고 지움.
+
+**54교시** — 요청 로그(`log/slog` JSON → 표준 출력). **로그는 운영자의 증거이자 새 유출 경로다.**
+51교시에 오류 상세를 응답에서 숨긴 대가로 502 원인을 볼 곳이 없었다. 재 보니 **`err.Error()` 에 사용자가 넣은 URL 이 통째로** 들어 있었다
+(비밀번호는 `***` 로 가려지지만 `?token=SECRET` 은 그대로). → 오류 문자열 대신 **종류**를 남긴다: `fetcher.ErrBlocked`·`ErrTooLarge`
+(`%w` — `http.Client` 를 거쳐도 `errors.Is` 로 찾아짐 확인) + `*net.DNSError` · `*tls.CertificateVerificationError` · `net.Error.Timeout()`.
+남기는 것: 상태·원인·scheme·host(포트 포함)·final_host·건수·바이트·ms. 남기지 않는 것: 경로·쿼리·조각·userinfo·본문·오류 문자열·방문자 IP.
+**로그 줄 위조**: `log.Printf` 로 줄바꿈 든 값을 쓰면 2줄(가짜 줄), slog JSON 은 1줄. `url.Parse` 는 호스트의 줄바꿈은 거부하지만
+**경로의 `%0A` 는 진짜 줄바꿈으로 풀어 준다** — 경로를 안 남기는 이유가 하나 더. `newHandler` 는 로그를 버리는 판으로 남겨 기존 테스트 11개 무수정.
+**JSON 핸들러 선택은 `cmd` 에 있어 테스트가 못 지킨다**(주석으로만). 변이 검사 13건 전부 잡음(처음 둘은 빌드 실패로 무효 → 다시 만듦).
+**사용자 코드에서 로그 필드 줄(`findings`·`notes`·`bytes`)이 빠졌는데 테스트가 통과했다** — 내 테스트가 네 필드만 봤다.
+명세 6절에 필드를 약속하므로 단언을 넣었다(`log_test.go` 는 사용자 위임으로 내가 고침). 명세 6절의 "로그를 남기지 않는다"를 실제 이미지 `docker logs` 로 재검증해 고쳤다.
+**사고**: 사용자 `handler.go` 가 에디터 되돌리기로 옛 오타(`appictaion`)까지 되살아나 깨졌다 — 차이가 전부 손상뿐이라 백업 후 `git checkout` 으로 복구(위임).
 
 1. **다음 방향 미정** — 남은 보류: foster parenting(트리) · eTLD+1 표 확장 · 단일 체계 위조 ·
    HIGH 규칙들은 실측 기회가 없다(정상 사이트에 안 나오는 게 정상).

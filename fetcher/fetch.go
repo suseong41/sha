@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -9,6 +10,12 @@ import (
 	"net/netip"
 	"net/url"
 	"time"
+)
+
+// 오류 종류
+var (
+	ErrBlocked  = errors.New("내부·예약 주소")
+	ErrTooLarge = errors.New("응답이 상한을 넘음")
 )
 
 // Fetcher: SSRF를 막는 HTTP 수집기
@@ -56,7 +63,7 @@ func (f *Fetcher) dialChecked(ctx context.Context, network, addr string) (net.Co
 	// 하나라도 내부면 그 이름 자체를 거부
 	for _, ip := range ips {
 		if why := blockedReason(ip); why != "" {
-			return nil, fmt.Errorf("%s(%s) 로는 접속하지 않는다: %s", host, ip, why)
+			return nil, fmt.Errorf("%s(%s) 로는 접속하지 않는다: %s: %w", host, ip, why, ErrBlocked)
 		}
 	}
 	var firstErr error
@@ -127,7 +134,7 @@ func readLimited(r io.Reader, max int64) ([]byte, error) {
 		return nil, err
 	}
 	if max < int64(len(body)) {
-		return nil, fmt.Errorf("응답이 상한 %d 바이트를 넘음", max)
+		return nil, fmt.Errorf("%w: %d 바이트", ErrTooLarge, max)
 	}
 	return body, nil
 }
