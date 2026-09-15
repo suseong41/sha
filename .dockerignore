@@ -1,0 +1,6 @@
+!go.mod
+!tokenizer
+!scanner
+!fetcher
+!web
+!cmd

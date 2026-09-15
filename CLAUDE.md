@@ -55,6 +55,7 @@ scanner/       규칙 계층 — scanner.go(엔진) + rules_*.go(규칙)
 fetcher/       SSRF 방어 수집기 — addr.go(주소 판정) · fetch.go(DialContext·상한·리다이렉트)
 web/           JSON API — POST /api/scan (my_homepage 의 nginx 뒤에서 돈다)
 cmd/webscan/   API 서버 진입점 — http.Server 타임아웃 · -addr
+Dockerfile     멀티 스테이지 → scratch · .dockerignore 는 허용 목록
 tools/         measure.sh — 실전 측정 (받은 페이지는 testdata/live/, 커밋 안 함)
 old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음)
 testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · spa_shell.html
@@ -137,6 +138,7 @@ go test ./...           # 638개 (서브테스트 포함) · 주입 테스트 �
 ./tools/measure.sh -f   #   모두 다시 받는다
 go test -short ./...    # 주입 테스트 건너뜀 — 고치는 중에 자주 돌릴 때
 gofmt -l .              # 출력이 있으면 실패
+docker build -t sha .   # 실행 이미지 (scratch · 비루트 · https 인증서)
 
 # 퍼징 — 큰 변경 뒤에는 길게
 go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 5m
@@ -194,7 +196,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · web(51~52교시, JSON API) · cmd/webscan
 ```
 
-> 26~52교시의 상세는 **DISCUSSION.md 12절**에 있다. 아래 요약은 압축 후 방향을 잃지 않기 위한 것이다.
+> 26~53교시의 상세는 **DISCUSSION.md 12절**에 있다. 아래 요약은 압축 후 방향을 잃지 않기 위한 것이다.
 
 ---
 
@@ -218,8 +220,30 @@ go test ./scanner -run 'Corpus|Malicious' -v
 >   `127.0.0.11`(loopback) — 47교시 판정이 이미 막는다. 문자열 검사였다면 `http://api:8000/` 이 통과했다.
 > - 컨테이너 안에서는 `-addr 0.0.0.0:8080` (127.0.0.1 이면 nginx 가 못 닿는다). 외부 차단은 compose 의 `expose`.
 >
-> **새 순서**: ~~**52교시** JSON API + 정렬을 `scanner.SortBySeverity` 로~~ **완료** · **53교시** `index.html` 에서 결과를 안전하게 그리기
-> (`textContent`·`createElement`) · **54교시** 배포(Dockerfile 멀티 스테이지·비루트, compose 서비스, nginx 헤더·`limit_req`).
+> **새 순서 (같은 날 다시 수정 — my_homepage 는 사용자가 나중에 직접 작업한다):**
+> ~~52교시 JSON API~~ **완료**. **my_homepage(index.html · nginx · compose)는 이 수업 범위가 아니다.**
+> 대신 넘겨줄 **명세**를 이 저장소에서 만든다. 명세에 **반드시** 들어갈 것:
+> ① API 계약 — `POST /api/scan`, `Content-Type: application/json`, `{"url"}` → `{"url","findings":[…],"notes":[…]}` ·
+>   오류는 `{"error"}` + 400/413/415/502 · 빈 결과도 `[]` · `url` 은 최종 URL · 정렬은 서버가 끝냄
+> ② **그리는 쪽 보안 요구** — `evidence`·`title`·`url`·`notes` 는 **공격자가 고른 문자열**이다. `innerHTML`·템플릿 리터럴 금지,
+>   `textContent`·`createElement` 로. 현재 index.html 의 `repoCardHtml`·`postCardHtml` 패턴을 그대로 쓰면 XSS.
+>   `notes` 가 있으면 "발견 없음"을 "안전"으로 보여주지 말 것(SPA 셸). 대상 URL 을 클릭 가능한 링크로 만들지 말 것.
+> ③ nginx — `location /api/scan` → `sha:8080` · 보안 헤더(CSP 등) · `limit_req`(Go 는 nginx IP 만 본다) · 요청 본문 상한
+> ④ compose — `expose` 만(`ports` 금지) · 컨테이너 안에서 `-addr 0.0.0.0:8080`
+> ⑤ **Cloudflare 프록시 뒤라면(사용자: 운영 서버는 Cloudflare 인증서) — 확인 전 조건부:**
+>   - nginx 의 `$remote_addr` 는 방문자가 아니라 **Cloudflare 엣지 IP**. 지금 `X-Real-IP $remote_addr` 도 엣지 IP.
+>     `limit_req` 가 엣지 단위로 걸린다 → `set_real_ip_from <Cloudflare 대역>` + `real_ip_header CF-Connecting-IP`
+>     (Cloudflare 대역에서 온 연결의 헤더만 믿어야 한다 — 원서버에 직접 붙으면 누구나 헤더를 위조한다).
+>   - **SHA 가 원서버 IP 를 흘린다.** 공격자가 자기 서버 URL 을 넣으면 접속 로그에 원서버 IP 가 찍힌다 →
+>     Cloudflare 를 우회해 원서버를 직접 칠 수 있다. 대응: 원서버 80/443 을 **Cloudflare 대역만 허용** ·
+>     또는 SHA 의 나가는 연결을 **다른 IP(프록시/VPN)** 로 — 위협 표의 "우리 IP 노출" 행이 여기서 현실이 된다.
+>   - 이미지의 CA 인증서 묶음은 **나가는 쪽**(스캔 대상 검증)용이다. 사이트의 Cloudflare 인증서(들어오는 쪽, nginx)와 무관.
+> **이 저장소 쪽 남은 일**: ~~Dockerfile~~(53교시) · 명세 문서 · Artifact 따라잡기(§12.28·§12.29).
+> **Go 버전 (2026-09-15 측정)**: go1.24.6 은 지원 종료 줄. `govulncheck -mode=binary` 로 **우리 코드가 호출하는 표준 라이브러리
+> 취약점 26건**(net/url · net/http · crypto/tls · crypto/x509 · net — fetcher 경로). go1.27.1 은 0건, 테스트 638개 그대로 통과.
+> 1.24.6 을 고른 이유는 go.mod·로컬과 맞추기였고 **지원 상태를 확인하지 않은 내 실수**. → go.mod `go 1.27.1`
+> (로컬 `GOTOOLCHAIN=auto` 라 자동 전환 확인 · CI 는 `go-version-file: go.mod`) · Dockerfile `golang:1.27-alpine`(패치는 재빌드 때 따라옴).
+> 공식 golang 이미지는 `GOTOOLCHAIN=local` 이라 자동 전환 안 됨.
 
 사용자의 목표: **포트폴리오 웹 페이지에서 URL 을 입력받아 `curl` 로 가져와 스캔하고 결과를 보여준다.**
 
@@ -433,6 +457,21 @@ HIGH 가 첫 줄이었다. 정렬 전 순서가 MEDIUM→HIGH 인 표본(`eval(a
 **코드와 테스트가 맞춰야 하는 약속(헤더 이름·미디어 타입)은 각자 따로 적는다** — 상수로 묶으면 둘이 같이 틀려도 통과한다
 (49교시 "리터럴은 한 번만"은 **테스트 안에서만** 쓰는 설정값 얘기다).
 변이 검사 17/17 · web 커버리지 97.4%.
+
+**53교시** — `Dockerfile` · `.dockerignore`. **실행 이미지에는 필요한 것만 — 무엇이 필요한지는 재야 안다.**
+세 판을 실제 컨테이너로 쟀다: `scratch` 바이너리만 8.72MB(**https 만 502**, http 200) · +인증서 한 줄 9.07MB(채택) · distroless 14.9MB.
+실패 원인 `x509: certificate signed by unknown authority` — **48교시 이후 테스트는 전부 가짜 dial 이라 못 본다.**
+51교시의 오류 상세 숨김 때문에 응답으로는 원인을 알 수 없었다 → 운영에는 서버 로그가 필요하다.
+`USER 65532:65532`(scratch 에 /etc/passwd 없음 — 숫자로). 컨테이너 안 `127.0.0.1` 바인드는 **로그는 멀쩡한데 아무도 못 닿는다**(curl exit 52).
+**Docker 네트워크 SSRF 대조군**: `api` 이름의 nginx 를 같은 네트워크에 두고 **방어 켬 502 / 끔 200**(내부 페이지를 가져옴) — 우리 방어가 막았다는 증거.
+`host.docker.internal`(→192.168.65.254, 이 Mac)·`172.17.0.1` 은 **끔에서도 502**(듣는 서버 없음) — 대조군이 구별 못 함, 표로만 막힌다.
+`.dockerignore` 없이 컨텍스트 40.8MB(.git·testdata/live·macOS 바이너리) → 허용 목록 300KB. **Docker 는 .gitignore 를 안 읽는다.**
+`CGO_ENABLED=0` 은 golang:alpine 에서 **이미 기본값 0**(C 컴파일러 없음) — 결과를 안 바꾼다고 정직하게 주석. `-trimpath -s -w` 14.2→9.07MB.
+**Go 버전 — 내 실수**: go.mod·로컬에 맞춰 1.24.6 고정. 지원 종료 줄이었고 `govulncheck -mode=binary` 로 **도달 가능한 표준 라이브러리
+취약점 26건**(net/url · net/http · crypto/tls · crypto/x509 · net — fetcher 경로). go1.27.1 은 0건, 테스트 638개 그대로 통과.
+CI 도 `go-version-file: go.mod` 이라 1.24.6 으로 돌고 있었다. → go.mod `go 1.27.1`(로컬 `GOTOOLCHAIN=auto` 자동 전환 확인,
+공식 golang 이미지는 `local` 이라 안 됨) · Dockerfile `golang:1.27-alpine`(**줄로 적어 재빌드 때 패치를 따라간다** — 정확한 고정이 26건을 쌓았다).
+**측정하다 한 실수**: "조회만"이라며 `docker run --pull=missing` 으로 이미지 4개를 받았다 — 쓸 것만 남기고 지움.
 
 1. **다음 방향 미정** — 남은 보류: foster parenting(트리) · eTLD+1 표 확장 · 단일 체계 위조 ·
    HIGH 규칙들은 실측 기회가 없다(정상 사이트에 안 나오는 게 정상).
