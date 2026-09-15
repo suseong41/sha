@@ -47,6 +47,20 @@ jobs:
           fi
           echo "정상: 발견되어 종료 코드 1"
 
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # 우리 코드가 실제로 호출하는 경로에 알려진 취약점이 있으면 실패한다.
+      # 코드가 그대로여도 취약점은 새로 알려지므로, 위의 주간 schedule 에서도 돈다.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
   fuzz:
     runs-on: ubuntu-latest
     strategy:
