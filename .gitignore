@@ -21,3 +21,6 @@ Makefile
 *.test
 /coverage.out
 /coverage.html
+
+# 실전 측정에서 받은 페이지 
+/testdata/live/

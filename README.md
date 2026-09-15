@@ -100,12 +100,22 @@ go vet ./...
 go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 1m
 ```
 
+#### 실전 측정
+
+```sh
+./tools/measure.sh      # tools/sites.txt 의 사이트를 받아 전수 스캔하고 집계
+./tools/measure.sh -f   # 모두 다시 받는다
+```
+
+받은 페이지는 `testdata/live/` 에 두고 **커밋하지 않는다**.
+코퍼스가 *변하지 않는 회귀 기준*이라면, 이쪽은 *그날의 웹*을 보는 도구다.
+
 #### 회귀 코퍼스
 
-`testdata/corpus/` 에 실제 웹에서 받은 **정상 페이지 12쪽**이 있다.
+`testdata/corpus/` 에 실제 웹에서 받은 **정상 페이지 21쪽**이 있다(한국어·영어·일본어·키릴·아랍·데바나가리).
 `scanner/corpus_test.go` 가 두 방향으로 단언한다.
 
-| | 정상 12쪽 | `malicious_sample.html` |
+| | 정상 21쪽 | `malicious_sample.html` |
 |---|---|---|
 | 잡는 것 | **오탐** — 정상인데 HIGH | **미탐** — 악성인데 조용함 |
 | 단언 | `HIGH == 0` | `HIGH >= 3` |
