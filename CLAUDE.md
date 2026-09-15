@@ -67,7 +67,7 @@ testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · 
 **둘 다 오탐/미탐의 바다가 되어 실패했다.** 그 원인 분석이 `DISCUSSION.md` 9절이다.
 
 설계 논의 전문: [DISCUSSION.md](DISCUSSION.md) ·
-Artifact: https://claude.ai/code/artifact/d20c0096-fb36-4afd-b57f-7c96ec67e558
+Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 21)
 
 ---
 
@@ -239,7 +239,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 >     Cloudflare 를 우회해 원서버를 직접 칠 수 있다. 대응: 원서버 80/443 을 **Cloudflare 대역만 허용** ·
 >     또는 SHA 의 나가는 연결을 **다른 IP(프록시/VPN)** 로 — 위협 표의 "우리 IP 노출" 행이 여기서 현실이 된다.
 >   - 이미지의 CA 인증서 묶음은 **나가는 쪽**(스캔 대상 검증)용이다. 사이트의 Cloudflare 인증서(들어오는 쪽, nginx)와 무관.
-> **이 저장소 쪽 남은 일**: ~~Dockerfile~~(53교시) · ~~명세 문서~~ → **`docs/INTEGRATION.md`** · Artifact 따라잡기(§12.28·§12.29·§12.30·§12.31).
+> **이 저장소 쪽 남은 일**: ~~Dockerfile~~(53교시) · ~~명세 문서~~ → **`docs/INTEGRATION.md`** · ~~Artifact 따라잡기~~ → Version 21 (논의 12-20 ~ 12-23).
 > 명세의 설정·코드는 전부 compose 로 띄워 검증했고, 문서에서 코드 블록을 뽑아 다시 돌려 옮겨 적기 오류도 확인했다.
 > **명세를 고칠 때도 같은 방식으로 다시 검증한다** (7절 검증 기록 표를 함께 갱신).
 > **Go 버전 (2026-09-15 측정)**: go1.24.6 은 지원 종료 줄. `govulncheck -mode=binary` 로 **우리 코드가 호출하는 표준 라이브러리

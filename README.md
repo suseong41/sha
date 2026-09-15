@@ -86,11 +86,40 @@ SPA 셸처럼 내용을 스크립트가 그리는 페이지가 그렇다.
 **종료 코드** — `0` 발견 없음 · `1` 발견 있음 · `2` 사용법/입출력 오류.
 CI에서 `-min high` 로 걸어 실패시킬 수 있다.
 
+#### Docker 로 URL 검사
+
+파일 대신 URL 을 주면 서버가 페이지를 가져와 스캔한다.
+
+```sh
+docker build -t sha .
+docker run --rm -p 127.0.0.1:8080:8080 sha
+
+# 다른 터미널에서
+curl -s -H 'Content-Type: application/json' \
+     -d '{"url":"https://www.naver.com/"}' \
+     http://127.0.0.1:8080/api/scan
+```
+
+```json
+{
+  "url": "https://www.naver.com/",
+  "findings": [
+    { "line": 1,  "col": 1655, "severity": "MEDIUM", "class": "supply-chain", "code": "sri-missing",    "evidence": "ssl.pstatic.net (4곳)" },
+    { "line": 24, "col": 1939, "severity": "LOW",    "class": "hardening",    "code": "inline-handler", "evidence": "<button onclick=…>" }
+  ],
+  "notes": []
+}
+```
+
+(일부 필드와 발견을 줄였다.) 발견은 심각도 순으로 정렬되어 온다.
+내부망·사설 IP·루프백 주소는 가져오지 않는다 — `192.168.0.1` 같은 주소를 넣으면 `502` 가 돌아온다.
+다른 서비스에 붙이는 방법은 [docs/INTEGRATION.md](docs/INTEGRATION.md) 에 있다.
+
 ---
 
 ### 빌드 · 테스트
 
-* Go 1.24 이상, 외부 의존성 없음
+* Go 1.27 이상, 외부 의존성 없음
 
 ```sh
 go test ./...          # 단위 테스트 + 퍼즈 씨앗
