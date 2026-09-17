@@ -15,6 +15,14 @@ var multiLabelSuffixes = map[string]bool{
 	// 그 외 흔한 것
 	"com.au": true, "com.cn": true, "com.br": true, "com.tw": true,
 	"com.sg": true, "com.hk": true, "co.in": true, "co.nz": true,
+	// 국가 도메인
+	"go.jp": true, "hs.kr": true, "seoul.kr": true,
+	"gov.cn": true, "org.cn": true, "com.tr": true, "org.il": true,
+	// 호스팅·CDN — 같은 접미사라도 계정이 다르면 남남이다.
+	// C-TAS 악성 도메인 918개 중 513개가 이 네 곳에 있었다(github.io 240 · vercel.app 214 · netlify.app 47 · framer.app 12).
+	"github.io": true, "githubusercontent.com": true,
+	"vercel.app": true, "netlify.app": true, "framer.app": true,
+	"cloudfront.net": true, "googleapis.com": true, "dynu.net": true,
 }
 
 // / registrableDomain(): 호스트의 등록 가능 도메인(eTLD+1)을 반환.

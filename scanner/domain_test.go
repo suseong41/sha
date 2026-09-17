@@ -18,6 +18,11 @@ func TestRegistrableDomain(t *testing.T) {
 		{"127.0.0.1", "127.0.0.1"},
 		{"localhost", "localhost"},
 		{"co.kr", "co.kr"},
+		{"attacker.github.io", "attacker.github.io"},
+		{"github.io", "github.io"},
+		{"shop-abc.vercel.app", "shop-abc.vercel.app"},
+		{"d111111abcdef8.cloudfront.net", "d111111abcdef8.cloudfront.net"},
+		{"www.seoul.kr", "www.seoul.kr"},
 		{"", ""},
 	}
 	for _, c := range cases {
@@ -38,6 +43,12 @@ func TestSameOrgDoesNotOverMerge(t *testing.T) {
 		{"a.co.kr", "b.co.kr", false}, // ← 표가 없으면 true 가 되어 미탐
 		{"a.go.kr", "b.go.kr", false},
 		{"github.com", "github.githubassets.com", false},
+		// 같은 호스팅이라도 계정이 다르면 남이다 — 표가 없으면 true 가 되어 미탐
+		{"victim.github.io", "attacker.github.io", false},
+		{"shop-abc.vercel.app", "steal-xyz.vercel.app", false},
+		{"a.netlify.app", "b.netlify.app", false},
+		{"www.seoul.kr", "evil.seoul.kr", false},
+		{"victim.github.io", "victim.github.io", true}, // 같은 계정은 같은 조직
 		{"a.com", "", false},
 	}
 	for _, c := range cases {
