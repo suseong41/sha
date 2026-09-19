@@ -47,12 +47,19 @@ var webShellSignatures = []struct{ needle, name string }{
 	{"r57shell", "r57 Shell"},
 }
 
+// 이름을 모르는 웹셸 화면이 보여 주는 PHP 안전 모드 상태
+var safeModeMarks = []string{"safe_mode", "safe-mode"}
+
 // 웹셸 화면: 보이는 글에 웹셸 이름 ^ 파일 업로드 칸
 type webShellPage struct {
 	name     string
 	offset   int
 	evidence string
 	upload   bool
+	safeMode bool
+	safeAt   int
+	safeEv   string
+	dirPerm  bool
 }
 
 func (r *webShellPage) Check(ctx *Context, tok tokenizer.Token) []Finding {
@@ -72,18 +79,36 @@ func (r *webShellPage) Check(ctx *Context, tok tokenizer.Token) []Finding {
 				break
 			}
 		}
+
+		if !r.safeMode {
+			for _, m := range safeModeMarks {
+				if i := strings.Index(low, m); 0 <= i {
+					r.safeMode, r.safeAt, r.safeEv = true, tok.Offset+i, excerpt(tok.Data, i, 48)
+					break
+				}
+			}
+		}
+		if strings.Contains(low, "drwx") {
+			r.dirPerm = true
+		}
 	}
 	return nil
 }
 
 func (r *webShellPage) Finish(ctx *Context) []Finding {
-	if r.name == "" || !r.upload {
+	if !r.upload {
 		return nil
 	}
-	return []Finding{{
-		Code: "webshell-signature", Class: ClassExecution, Title: "웹셸 시그니처: " + r.name, Severity: High,
-		Offset: r.offset, Evidence: r.evidence + " + 파일 업로드 칸",
-	}}
+	f := Finding{Code: "webshell-signature", Class: ClassExecution, Severity: High}
+	switch {
+	case r.name != "":
+		f.Title, f.Offset, f.Evidence = "웹셸 시그니처: "+r.name, r.offset, r.evidence+" + 파일 업로드 칸"
+	case r.safeMode && r.dirPerm:
+		f.Title, f.Offset, f.Evidence = "웹셸 화면: 이름 모름", r.safeAt, r.safeEv+" + 디렉터리 권한 + 파일 업로드 칸"
+	default:
+		return nil
+	}
+	return []Finding{f}
 }
 
 // 방문자 PC의 파일·프로세스를 다루는 Windows 객체

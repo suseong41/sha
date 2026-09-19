@@ -30,7 +30,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | HIGH | exfiltration | `form-action-ip` | 폼이 IP 주소로 직접 전송 |
   | HIGH | exfiltration | `exfil-channel` | 스크립트·폼이 외부 메시징 API로 전송 |
   | HIGH | exfiltration | `phishing-interstitial` | CDN이 대상을 피싱으로 분류 (제3자 판정) |
-  | HIGH | execution | `webshell-signature` | 웹셸 관리 화면 — 알려진 웹셸 이름이 보이고 파일 업로드 칸이 있음 |
+  | HIGH | execution | `webshell-signature` | 웹셸 관리 화면 — 알려진 웹셸 이름 + 파일 업로드 칸, 또는 이름 없이 PHP 안전 모드 상태 + 디렉터리 권한(`drwx`) + 파일 업로드 칸 |
   | HIGH | execution | `local-system-object` | 스크립트가 방문자 PC 의 파일·프로세스를 다루는 Windows 객체를 만듦 (드로퍼·다운로더) |
   | HIGH | execution | `meta-refresh-scheme` | `meta refresh` 가 `data:`/`javascript:` 로 이동 |
   | HIGH | execution | `data-uri-document` | 실행 가능한 `data:` URI 를 iframe/object/script 에 삽입 |

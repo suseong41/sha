@@ -17,6 +17,7 @@ func FuzzScan(f *testing.F) {
 		{`<script>eval(atob("x"))</script>`, "https://a.com/"},
 		{`<script>fetch("https://api.telegram.org/b")</script>`, "https://a.com/"},
 		{`<title>c99shell</title><form><input type=file></form>`, "https://a.com/"},
+		{`<p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><input type=file>`, "https://a.com/"},
 		{`<script language="VBScript">CreateObject("WScript.Shell")</script>`, "https://a.com/"},
 		{`<meta http-equiv="refresh" content="0;url=data:text/html,x">`, "https://a.com/"},
 		{`<iframe src="data:text/html;base64,PA=="></iframe>`, "https://a.com/"},

@@ -26,6 +26,15 @@ func TestWebShellSignature(t *testing.T) {
 		{"대소문자", `<p>C99Shell</p><input TYPE=FILE>`, 1},
 		{"다른시그니처", `<title>ByroeNet SheLL</title><input type=file>`, 1},
 		{"이름둘은한건", `<title>c99shell</title><p>r57shell</p><input type=file><input type=file>`, 1},
+		// 이름을 모를 때 — 안전 모드 상태 ∧ 디렉터리 권한 ∧ 업로드 칸 (Locus7Shell·x2300 실측)
+		{"안전모드만+업로드", `<p>Safe-mode: OFF</p><input type=file>`, 0},
+		{"권한만+업로드", `<pre>drwxr-xr-x .</pre><input type=file>`, 0},
+		{"안전모드+권한", `<p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre>`, 0},
+		{"윈도우안전모드", `<p>Safe Mode</p><pre>drwxr-xr-x .</pre><input type=file>`, 0},
+		{"스크립트안표지", `<script>var s = "safe_mode drwx";</script><input type=file>`, 0},
+		{"이름모르는웹셸", `<title>Locus7Shell</title><p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><form><input type=file></form>`, 1},
+		{"밑줄표기", `<p>safe_mode: ON</p><pre>drwxr-xr-x .</pre><input type=file>`, 1},
+		{"이름도표지도한건", `<title>c99shell</title><p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><input type=file>`, 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -129,6 +138,31 @@ func TestObfucatedEvalArgument(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := countCode(c.html, "", code); got != c.want {
 				t.Errorf("%s → %d건, want %d건", c.html, got, c.want)
+			}
+		})
+	}
+}
+
+// 이름을 알면 이름으로, 모르면 "이름 모름"으로. 위치는 그 근거를 가리킴
+func TestWebShellTitle(t *testing.T) {
+	cases := []struct {
+		name, html, title string
+		line, col         int
+	}{
+		{"이름모름", "<p>x</p>\n<p>PHP Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><input type=file>", "웹셸 화면: 이름 모름", 2, 8},
+		{"이름이우선", "<p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre>\n<b>c99shell</b><input type=file>", "웹셸 시그니처: c99 Shell", 2, 4},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f, ok := findFirst(c.html, "", "webshell-signature")
+			if !ok {
+				t.Fatal("발견되지 않음")
+			}
+			if f.Title != c.title {
+				t.Errorf("Title = %q, want %q", f.Title, c.title)
+			}
+			if f.Line != c.line || f.Col != c.col {
+				t.Errorf("위치 = %d:%d, want %d:%d", f.Line, f.Col, c.line, c.col)
 			}
 		})
 	}
