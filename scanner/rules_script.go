@@ -40,31 +40,50 @@ func scriptText(ctx *Context, tok tokenizer.Token) (string, bool) {
 }
 
 // 알려진 웹셸 시그니처
-var scriptSignatures = []struct{ needle, name string }{
+var webShellSignatures = []struct{ needle, name string }{
 	{"c99shell", "c99 Shell"},
 	{"ls_reserved_all", "c99 Shell"},
 	{"byroenet", "ByroeNet Shell"},
 	{"r57shell", "r57 Shell"},
 }
 
-func ruleWebShellSignature(ctx *Context, tok tokenizer.Token) []Finding {
-	data, ok := scriptText(ctx, tok)
-	if !ok {
+// 웹셸 화면: 보이는 글에 웹셸 이름 ^ 파일 업로드 칸
+type webShellPage struct {
+	name     string
+	offset   int
+	evidence string
+	upload   bool
+}
+
+func (r *webShellPage) Check(ctx *Context, tok tokenizer.Token) []Finding {
+	switch tok.Type {
+	case tokenizer.StartTagToken:
+		if tok.Name == "input" && asciiLower(mustAttr(tok, "type")) == "file" {
+			r.upload = true
+		}
+	case tokenizer.TextToken:
+		if tok.Raw || r.name != "" {
+			return nil
+		}
+		low := asciiLower(tok.Data)
+		for _, sig := range webShellSignatures {
+			if i := strings.Index(low, sig.needle); 0 <= i {
+				r.name, r.offset, r.evidence = sig.name, tok.Offset+i, excerpt(tok.Data, i, 48)
+				break
+			}
+		}
+	}
+	return nil
+}
+
+func (r *webShellPage) Finish(ctx *Context) []Finding {
+	if r.name == "" || !r.upload {
 		return nil
 	}
-	low := asciiLower(data)
-	var out []Finding
-	for _, sig := range scriptSignatures {
-		i := strings.Index(low, sig.needle)
-		if i < 0 {
-			continue
-		}
-		out = append(out, Finding{
-			Code: "webshell-signature", Class: ClassExecution, Title: "웹셸 시그니처: " + sig.name, Severity: High,
-			Offset: tok.Offset + i, Evidence: excerpt(data, i, 48),
-		})
-	}
-	return out
+	return []Finding{{
+		Code: "webshell-signature", Class: ClassExecution, Title: "웹셸 시그니처: " + r.name, Severity: High,
+		Offset: r.offset, Evidence: r.evidence + " + 파일 업로드 칸",
+	}}
 }
 
 var exfilHosts = []string{

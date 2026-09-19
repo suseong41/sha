@@ -50,7 +50,8 @@ func TestEveryRuleHasClass(t *testing.T) {
 <img src="http://x.com/a.png">
 <a href="javascript:alert(1)" target="_blank">z</a>
 <p onclick="x()">보이지` + "​" + `않음</p>
-<script>var m="c99shell"; eval(atob(x)); fetch("https://api.telegram.org/b/x")</script>`
+<p>c99shell</p><input type="file">
+<script>eval(atob(x)); fetch("https://api.telegram.org/b/x")</script>`
 
 	want := map[string]Class{
 		"base-href-external":         ClassOrigin,

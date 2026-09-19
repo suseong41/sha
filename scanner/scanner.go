@@ -50,7 +50,7 @@ func newRules() []Rule {
 		ruleFunc(ruleMixedContent),
 		&sriRule{},
 		&targetBlankRule{},
-		ruleFunc(ruleWebShellSignature),
+		&webShellPage{},
 		ruleFunc(ruleExfilChannel),
 		ruleFunc(ruleObfuscateEval),
 		ruleFunc(ruleMetaRefreshScheme),

