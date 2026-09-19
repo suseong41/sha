@@ -242,3 +242,48 @@ func TestScriptRulesSkipDataBlocks(t *testing.T) {
 		})
 	}
 }
+
+func TestEncodedShellcode(t *testing.T) {
+	const code = "encoded-shellcode"
+	cases := []struct {
+		name, html string
+		want       int
+	}{
+		// 음성 — escape() 한 글은 전부 글자로 풀림 (한·중·일·아랍·힌디 566조각 실측)
+		{"한국어", `<script>var t = unescape("%uB85C%uADF8%uC778");</script>`, 0},
+		{"일본어", `<script>var t = unescape("%u3053%u3093%u306B%u3061%u306F%u4E16%u754C");</script>`, 0},
+		{"아랍어+방향표시", `<script>var t = unescape("%u0645%u0631%u062D%u0628%u0627%u200F");</script>`, 0},
+		{"이모지짝", `<script>var t = unescape("%uD83D%uDE00");</script>`, 0},
+		{"대문자U는이스케이프아님", `<script>var s = unescape("%UE8FC%U0000");</script>`, 0},
+		{"정규식안의%u", `<script>var re = /%u([0-9a-f]{4})/g;</script>`, 0},
+		{"데이터블록", `<script type="application/json">"%uE8FC%u0000"</script>`, 0},
+		{"본문글자", `<p>%uE8FC%u0000</p>`, 0},
+		// 양성 — 글자로 풀리지 않는 값 -> 이진 코드
+		{"사용자정의영역", `<script>var sc = unescape("%uE8FC%u4141");</script>`, 1},
+		{"제어문자", `<script>var sc = unescape("%u4141%u0000");</script>`, 1},
+		{"짝없는서로게이트", `<script>var sc = unescape("%uD800%u4141");</script>`, 1},
+		{"끝에남은서로게이트", `<script>var sc = unescape("%u4141%uD800");</script>`, 1},
+		{"미할당", `<script>var sc = unescape("%u0D0D%u0D0D");</script>`, 1},
+		{"소문자16진수", `<script>var sc = unescape("%ue8fc%u9090");</script>`, 1},
+		{"한페이지한건", `<script>unescape("%uE8FC")</script><script>unescape("%uE8FC")</script>`, 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := countCode(c.html, "", code); got != c.want {
+				t.Errorf("%s → %d건, want %d건", c.html, got, c.want)
+			}
+		})
+	}
+}
+
+// 발견 위치는 %u 구간의 시작을 가리킴
+func TestEncodedShellcodeOffset(t *testing.T) {
+	const html = "<script>\n  var sc = unescape(\"%uE8FC%u4141\");\n</script>"
+	f, ok := findFirst(html, "", "encoded-shellcode")
+	if !ok {
+		t.Fatal("발견되지 않음")
+	}
+	if f.Line != 2 || f.Col != 22 {
+		t.Errorf("위치 = %d:%d, want 2:22", f.Line, f.Col)
+	}
+}

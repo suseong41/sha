@@ -19,6 +19,7 @@ func FuzzScan(f *testing.F) {
 		{`<title>c99shell</title><form><input type=file></form>`, "https://a.com/"},
 		{`<p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><input type=file>`, "https://a.com/"},
 		{`<script language="VBScript">CreateObject("WScript.Shell")</script>`, "https://a.com/"},
+		{`<script>unescape("%uE8FC%uD800%u4141%u0000")</script>`, "https://a.com/"},
 		{`<meta http-equiv="refresh" content="0;url=data:text/html,x">`, "https://a.com/"},
 		{`<iframe src="data:text/html;base64,PA=="></iframe>`, "https://a.com/"},
 		{`<a href="&#106;avascript:alert(1)">z</a>`, ""},

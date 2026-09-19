@@ -22,7 +22,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   `static.example.com` 은 `www.example.com` 페이지에서 외부가 아니다
 * **집계** — 같은 원인은 한 줄로 묶는다.
   CDN 한 곳에서 스크립트 30개를 불러도 조치는 하나이므로 `(30곳)` 으로 보고한다
-* **탐지 규칙 24종** (심각도 · 분류별)
+* **탐지 규칙 25종** (심각도 · 분류별)
 
   | 심각도 | 분류 | 규칙 | 내용 |
   |---|---|---|---|
@@ -32,6 +32,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | HIGH | exfiltration | `phishing-interstitial` | CDN이 대상을 피싱으로 분류 (제3자 판정) |
   | HIGH | execution | `webshell-signature` | 웹셸 관리 화면 — 알려진 웹셸 이름 + 파일 업로드 칸, 또는 이름 없이 PHP 안전 모드 상태 + 디렉터리 권한(`drwx`) + 파일 업로드 칸 |
   | HIGH | execution | `local-system-object` | 스크립트가 방문자 PC 의 파일·프로세스를 다루는 Windows 객체를 만듦 (드로퍼·다운로더) |
+  | HIGH | execution | `encoded-shellcode` | 스크립트가 `%uXXXX` 로 숨긴 이진 코드(셸코드) — 풀면 글자가 아닌 값이 나옴 |
   | HIGH | execution | `meta-refresh-scheme` | `meta refresh` 가 `data:`/`javascript:` 로 이동 |
   | HIGH | execution | `data-uri-document` | 실행 가능한 `data:` URI 를 iframe/object/script 에 삽입 |
   | HIGH | origin | `base-href-external` | `<base href>` 가 외부 도메인 — 모든 상대 URL이 그쪽으로 |
@@ -51,7 +52,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | LOW | hardening | `inline-handler` | 인라인 이벤트 핸들러 (`onclick` 등) |
   | INFO | hardening | `target-blank-no-rel` | `target=_blank` 에 `rel=noopener` 없음 |
 
-  스크립트를 읽는 규칙(`exfil-channel` · `obfuscated-eval` · `local-system-object`)은 **실행되는 코드 블록만** 본다.
+  스크립트를 읽는 규칙(`exfil-channel` · `obfuscated-eval` · `local-system-object` · `encoded-shellcode`)은 **실행되는 코드 블록만** 본다.
   `<script type="application/json">` 같은 데이터 블록은 실행되지 않는다 — GitHub 코드 화면이 파일 내용을 거기 담는다.
 
 

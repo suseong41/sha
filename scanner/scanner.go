@@ -53,6 +53,7 @@ func newRules() []Rule {
 		&targetBlankRule{},
 		&webShellPage{},
 		&localObjectRule{},
+		&shellcodeRule{},
 		ruleFunc(ruleExfilChannel),
 		ruleFunc(ruleObfuscateEval),
 		ruleFunc(ruleMetaRefreshScheme),

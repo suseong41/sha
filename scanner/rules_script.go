@@ -1,7 +1,11 @@
 package scanner
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf16"
 
 	"github.com/suseong41/suseong-html-analyzer/tokenizer"
 )
@@ -148,6 +152,57 @@ func codeScript(typ string) bool {
 	case "", "module", "text/javascript", "application/javascript", "text/ecmascript", "application/ecmascript",
 		"application/x-javascript", "text/x-javascript", "text/jscript", "text/vbscript", "text/vbs":
 		return true
+	}
+	return false
+}
+
+// %uXXXX 이스케이프가 이어진 구간. unescape()는 소문자 u만 푼다.
+var percentU = regexp.MustCompile(`(?:%u[0-9a-fA-F]{4})+`)
+
+// 셸코드: 실행되는 스크립트의 %u 이스케이프가 글자가 아닌 값으로 풀림
+type shellcodeRule struct {
+	found bool
+}
+
+func (r *shellcodeRule) Check(ctx *Context, tok tokenizer.Token) []Finding {
+	data, ok := scriptText(ctx, tok)
+	if !ok || r.found {
+		return nil
+	}
+	for _, loc := range percentU.FindAllStringIndex(data, -1) {
+		if binaryRun(data[loc[0]:loc[1]]) {
+			r.found = true
+			return []Finding{{
+				Code: "encoded-shellcode", Class: ClassExecution, Title: "스크립트가 %u 로 숨긴 이진 코드(셸코드)", Severity: High,
+				Offset: tok.Offset + loc[0], Evidence: excerpt(data, loc[0], 48),
+			}}
+		}
+	}
+	return nil
+}
+
+// binaryRun(): %u 구간을 풀었을 때 글자가 아닌 값이 있는지
+func binaryRun(run string) bool {
+	var units []uint16
+	for i := 0; i+6 <= len(run); i += 6 {
+		v, _ := strconv.ParseUint(run[i+2:i+6], 16, 16)
+		units = append(units, uint16(v))
+	}
+	for i := 0; i < len(units); i++ {
+		r := rune(units[i])
+		if utf16.IsSurrogate(r) {
+			if i+1 == len(units) {
+				return true
+			}
+			r = utf16.DecodeRune(r, rune(units[i+1]))
+			if r == unicode.ReplacementChar {
+				return true
+			}
+			i++
+		}
+		if !unicode.In(r, unicode.L, unicode.M, unicode.N, unicode.P, unicode.S, unicode.Z, unicode.Cf) {
+			return true
+		}
 	}
 	return false
 }
