@@ -30,6 +30,23 @@ func TestCleartextCredentials(t *testing.T) {
 			}
 		})
 	}
+
+	// 양성은 어느 경로든 MEDIUM이어야 함.
+	// 피해 사이트의 http 로그인 폼 -> 공격자 흔적이 아닌 개발자 실수.
+	for _, c := range cases {
+		if c.want == 0 {
+			continue // 음성
+		}
+		t.Run("심각도_"+c.name, func(t *testing.T) {
+			f, ok := findFirst(c.html, c.url, code)
+			if !ok {
+				t.Fatal("발견되지 않음")
+			}
+			if f.Severity != Medium {
+				t.Errorf("심각도 = %v, want MEDIUM", f.Severity)
+			}
+		})
+	}
 }
 
 func TestWeakPasswordField(t *testing.T) {

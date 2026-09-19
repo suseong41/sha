@@ -26,7 +26,6 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
 
   | 심각도 | 분류 | 규칙 | 내용 |
   |---|---|---|---|
-  | HIGH | exfiltration | `cleartext-credentials` | 비밀번호가 평문(http)으로 전송 |
   | HIGH | exfiltration | `cross-origin-password-form` | 비밀번호 폼이 외부 도메인으로 전송 |
   | HIGH | exfiltration | `form-action-ip` | 폼이 IP 주소로 직접 전송 |
   | HIGH | exfiltration | `exfil-channel` | 스크립트·폼이 외부 메시징 API로 전송 |
@@ -36,6 +35,7 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | HIGH | execution | `data-uri-document` | 실행 가능한 `data:` URI 를 iframe/object/script 에 삽입 |
   | HIGH | origin | `base-href-external` | `<base href>` 가 외부 도메인 — 모든 상대 URL이 그쪽으로 |
   | HIGH | origin | `mixed-script-host` | 호스트 라벨에 모양이 같은 문자 체계가 섞임 (`аpple.com` 의 키릴 а) |
+  | MEDIUM | exfiltration | `cleartext-credentials` | 비밀번호가 평문(http)으로 전송 — 대개 피해 사이트의 설정 실수 |
   | MEDIUM | execution | `javascript-url` | `javascript:` URL (문자 참조 우회 포함) |
   | MEDIUM | execution | `dangerous-download` | `.hta`·`.scr`·`.vbs` 등으로 연결되는 링크 |
   | MEDIUM | origin | `iframe-sandbox-escape` | `allow-scripts` 와 `allow-same-origin` 동시 허용 |

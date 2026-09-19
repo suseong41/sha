@@ -62,7 +62,7 @@ func ruleClearTextCredentials(ctx *Context, tok tokenizer.Token) []Finding {
 		out = append(out, Finding{
 			Code: "cleartext-credentials", Class: ClassExfiltration,
 			Title:    "비밀번호가 평문으로 전송됨",
-			Severity: High, Offset: tok.Offset, Evidence: why,
+			Severity: Medium, Offset: tok.Offset, Evidence: why,
 		})
 	}
 	return out
