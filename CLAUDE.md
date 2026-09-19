@@ -74,7 +74,7 @@ testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · 
 설정 파일을 `exec` 하므로 **실행하지 말고** 함수만 import 해서 잰다.
 
 설계 논의 전문: [DISCUSSION.md](DISCUSSION.md) ·
-Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 26 — 논의 9-0(첫 연구) · 12-33 · 60교시까지.
+Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 27 — 논의 9-0(첫 연구) · 12-34 · 61교시까지.
 갱신은 `Artifact read` 로 받은 최신판에서 시작한다 — 스크래치패드 사본은 사라지거나 낡을 수 있다)
 
 ---
@@ -118,6 +118,10 @@ SPA 셸, WAF 차단 페이지가 여기 해당한다. 원본은 SPA에 `+12점` 
 토큰만 보고 "폼이다"라고 판단하면 브라우저가 **무시한** 중첩 `<form>` 까지 본다.
 `ctx.OpenForm()` · `ctx.FormAccepted(tok)` 를 쓴다. 스택은 **규칙보다 먼저** 갱신되므로
 "열린 폼이 있는가"가 아니라 **"열린 폼이 바로 이 토큰인가"** 를 물어야 한다.
+
+**구조 판정은 한 곳에서 하고, 규칙은 그 결과를 묻는다.** 스크립트가 코드 블록인가는 `<script>` 시작 태그에서
+`ctx.scriptCode` 가 정하고(`codeScript()`), 스크립트 규칙은 **`scriptText()` 로만** 읽는다. 규칙마다 따로 판정하면
+빠뜨린 규칙이 구멍이 된다 — 61교시에 `exfil-channel` 이 GitHub 코드 화면(JSON 데이터 블록)에서 HIGH 를 냈다.
 
 ---
 
@@ -207,7 +211,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 24종(HIGH 10) · 테스트 700개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
+규칙 24종(HIGH 10) · 테스트 709개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
 C-TAS 악성 HTML 24,636개: HIGH 표본 3,808 · 공격 분류 발견 0건 13,382(54%) — 60교시 기준, 측정 도구는 보류 표 참고
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 실전 43쪽 측정: 393건 → 115건 · HIGH 0건 | 커버리지 main 98.5% · scanner 99.0% · tokenizer 95.1%
@@ -320,8 +324,8 @@ file:///etc/passwd          로컬 파일
 | ↳ **표본 조달 (2026-09-17)** | 사용자가 **C-TAS 에 머신러닝용 악성 HTML 데이터셋을 신청해 두었다.** 도착하면 1번을 진행한다. 받은 HTML 은 스캔만 하고 브라우저·미리보기로 열지 않으며 커밋하지 않는다(`testdata/live/` 처럼 git 에서 뺀 곳). |
 | ↳ **데이터셋 도착 (2026-09-19)** | `/Users/suseong/test/dataset/` — zip 8개 4.7GB(**풀지 않는다** — 압축 파일에서 메모리로 읽어 스캔). 분류: backdoor 132 · downloader 1,043 · exploit.kit 1,600 · miner 10,000 · ransomware 323 · trojan 10,000 · virus 841 · worm 697 표본. **원본 HTML 이 아니라 머신러닝 특징값**: 표본마다 `<sha256>.json` + 바이트 그림 `.bmp` 2개. JSON 의 `strings` 가 **줄 단위로 자른 원본 문자열**(글자 합이 원본의 95~98%) → `strings.Join(s, "\n")` 으로 되살린다. **한계**: 비ASCII 가 전부 빠짐(제로폭·유니코드 도메인 규칙은 이 데이터로 못 잰다) · 빈 줄 빠짐 · **페이지 URL 모름**(출처 규칙은 설계대로 물러남, 가짜 URL 은 부풀리므로 안 씀). 출처는 VirusShare·clean-mx, `av_detection` 에 백신 진단명. 측정 도구는 스크래치패드 `ctas/tool` (저장소 밖) |
 | ↳ **첫 측정 (2026-09-19, 24,636표본 · 50초)** | 발견 있음 89.8% 이지만 대부분 hardening·supply-chain(mixed-content·sri-missing·inline-handler). **HIGH 24.8% 는 착시**: `cleartext-credentials` 6,109건 중 miner 의 5,684건이 **한 사이트**(saltworld.net 포럼, 채굴 스크립트가 심긴 페이지를 페이지마다 수집 — **중복 제거 없이 비율을 내면 안 된다**). 게다가 이 HIGH 는 악성코드가 아니라 **피해 사이트의 http 로그인 폼** → §3 "HIGH 는 악성 행위에만" 과 충돌(결정 필요). **`webshell-signature` 0/132**: backdoor 표본에 시그니처가 문서 어디든 75회(c99shell 40 · r57shell 31 · byroenet 4) 있지만 `<script>` 안에는 **0회** — 규칙이 구조적으로 못 보는 자리를 보고 있었다(웹셸은 서버가 그린 관리 화면). 진짜로 보이는 HIGH: `form-action-ip` 9(`http://69.31.86.221/se.php`) · `data-uri-document` 4. 한 번도 안 뜬 HIGH: 출처 규칙(URL 없음, 설계대로) · mixed-script-host(비ASCII 빠짐) · exfil-channel·meta-refresh-scheme·phishing-interstitial(피싱이 아니라 악성코드 데이터). **재현율 구멍**: 발견 0건 비율 exploit.kit 49% · downloader 43% · worm 56% |
-| ↳ **▶ 다음에 할 일 (2026-09-20 · A·B 완료, C 규칙 둘 완료)** | ~~**A** `cleartext-credentials` HIGH → MEDIUM~~ — **57교시 완료**(사용자 확인 후). HIGH 표본 6,120 → **12**(form-action-ip 9 · data-uri-document 3), 발견 수 22,112 그대로 (§12.38). ~~**B** `webshell-signature` 가 본문도 보게~~ — **58교시 완료.** 보이는 이름 ∧ 파일 업로드 칸. backdoor 0 → **42**/132 · 웹셸을 다루는 정상 글 16쪽 오탐 7 → **0** (§12.39). **C** 재현율 구멍 — 기준을 "발견 0건"이 아니라 **"공격 분류 발견 0건"** 으로 잰다(16,476개 · 67%). **59교시에 첫 규칙 `local-system-object`** → 13,398(54%) (§12.40). **60교시에 이름 없는 웹셸**(안전 모드 ∧ `drwx` ∧ 업로드 칸, `webShellPage` 확장) → 13,382 (§12.41). 남은 후보와 버린 이유는 §12.40 끝(채굴 4,007 · ransomware 323 · exploit kit 의 heap spray). 중복은 대표 호스트로 묶어 함께 보고한다. **D (2026-09-20 재현한 오탐)** `exfil-channel`(HIGH) · `obfuscated-eval` 도 `scriptText()` 로 읽어 **데이터 블록(`type="application/json"`)까지 본다** — GitHub 코드 화면이 담는 모양 그대로 넣으니 둘 다 발동했다. 59교시의 `codeScript()` 판정을 `scriptText()` 쪽으로 옮기면 스크립트 규칙이 모두 공유한다. |
-| ↳ **측정 도구 다시 만드는 법** | 스크래치패드는 사라질 수 있다. Go 로 `archive/zip` 을 열어 `.json` 만 읽고, `{"strings":[…]}` 를 `strings.Join(…, "\n")` 으로 이어 `scanner.ScanURL(html, "")` → 분류(zip 이름 `html.<분류>_1.zip`)별로 표본 수·발견 있음·HIGH 있음·규칙별 발동 표본 수를 센다. 저장소 밖 모듈에서 `replace github.com/suseong41/suseong-html-analyzer => <저장소 복사본>` 으로 붙인다. 되살린 HTML 은 **디스크에 쓰지 않는다.** 전체 24,636개가 약 50초. 증거 문자열은 90자로 잘라 3개씩만 찍는다. **58교시 도구**(`ctas/ws`): 토크나이저만 써서 시그니처·표지가 나온 **자리**(title · textarea · text · raw · attr · comment)를 표본별로 세고 후보 조건을 나란히 비교한다(`ws dataset <dir>` · `ws perfile <html…>`). **음성 표본 16쪽**(웹셸을 다루는 정상 글)의 출처는 DISCUSSION §12.39 — 다시 받을 때도 **웹셸 배포 사이트는 받지 않는다** |
+| ↳ **▶ 다음에 할 일 (2026-09-20 · A·B 완료, C 규칙 둘 완료)** | ~~**A** `cleartext-credentials` HIGH → MEDIUM~~ — **57교시 완료**(사용자 확인 후). HIGH 표본 6,120 → **12**(form-action-ip 9 · data-uri-document 3), 발견 수 22,112 그대로 (§12.38). ~~**B** `webshell-signature` 가 본문도 보게~~ — **58교시 완료.** 보이는 이름 ∧ 파일 업로드 칸. backdoor 0 → **42**/132 · 웹셸을 다루는 정상 글 16쪽 오탐 7 → **0** (§12.39). **C** 재현율 구멍 — 기준을 "발견 0건"이 아니라 **"공격 분류 발견 0건"** 으로 잰다(16,476개 · 67%). **59교시에 첫 규칙 `local-system-object`** → 13,398(54%) (§12.40). **60교시에 이름 없는 웹셸**(안전 모드 ∧ `drwx` ∧ 업로드 칸, `webShellPage` 확장) → 13,382 (§12.41). 남은 후보와 버린 이유는 §12.40 끝(채굴 4,007 · ransomware 323 · exploit kit 의 heap spray). 중복은 대표 호스트로 묶어 함께 보고한다. ~~**D** 스크립트 규칙이 데이터 블록까지 봄~~ — **61교시 완료.** 정상 텔레그램 봇 라이브러리의 GitHub 코드 화면 2쪽이 `exfil-channel` HIGH → 0. 판정을 `ctx.scriptCode` + `scriptText()` 로 옮겨 세 규칙이 공유, 데이터셋·음성·코퍼스는 전후 같음 (§12.42). |
+| ↳ **측정 도구 다시 만드는 법** | 스크래치패드는 사라질 수 있다. Go 로 `archive/zip` 을 열어 `.json` 만 읽고, `{"strings":[…]}` 를 `strings.Join(…, "\n")` 으로 이어 `scanner.ScanURL(html, "")` → 분류(zip 이름 `html.<분류>_1.zip`)별로 표본 수·발견 있음·HIGH 있음·규칙별 발동 표본 수를 센다. 저장소 밖 모듈에서 `replace github.com/suseong41/suseong-html-analyzer => <저장소 복사본>` 으로 붙인다. 되살린 HTML 은 **디스크에 쓰지 않는다.** 전체 24,636개가 약 50초. 증거 문자열은 90자로 잘라 3개씩만 찍는다. **58교시 도구**(`ctas/ws`): 토크나이저만 써서 시그니처·표지가 나온 **자리**(title · textarea · text · raw · attr · comment)를 표본별로 세고 후보 조건을 나란히 비교한다(`ws dataset <dir>` · `ws perfile <html…>`). **음성 표본 16쪽**(웹셸을 다루는 정상 글)의 출처는 DISCUSSION §12.39 — 다시 받을 때도 **웹셸 배포 사이트는 받지 않는다**. **음성 표본 2**(`ctas/neg2`, 텔레그램 API 를 다루는 정상 GitHub 페이지 4쪽 — 출처는 §12.42) |
 | ~~foster parenting~~ | **2026-09-17 측정으로 닫음** — `x/net/html` 을 대조군으로 표 6경우를 재니 우리 판정이 전부 일치했다. foster parenting 은 노드의 **자리**를 바꾸지만 폼 소속은 **form 요소 포인터**로 정해지고, 우리 규칙은 자리가 아니라 소속을 묻는다. 회귀 3건을 `differential_test.go` 에 고정 |
 | **단일 체계 위조(`аррӏе`)** | **2026-09-17 측정 후 보류 유지 — 만들지 않는다.** C-TAS 918개의 punycode 63개가 **전부 한글 단일**(키릴 0 · 그리스 0), 정상 코퍼스·실측 호스트 2,226개에는 punycode **0개**. 대상도 0건이고 **오탐을 잴 음성 표본도 0건**이라 규칙 추가 절차 2·3번을 지킬 수 없다. **다시 볼 조건**: 새 표본에서 **키릴·그리스 단일 체계 라벨이 1건이라도** 나오면 그때 만든다. 곁가지: punycode 63개의 TLD 는 `.com` 45 · `.me` 13 · `.co` 4 · `.net` 1 — "한글 라벨인데 한국 TLD 가 아니다"도 신호가 될 수 있으나 정상 표본이 0건이라 오탐률을 못 잰다 (§12.36) |
 | ~~eTLD+1 표 확장~~ | **2026-09-17 측정 후 24 → 39개.** 호스트 3,141개를 PSL(`x/net/publicsuffix`)과 대조해 어긋난 555개의 접미사만 넣었다. 대부분이 무료 호스팅(github.io 240 · vercel.app 214 · netlify.app 47 · framer.app 12 — 전부 C-TAS 악성 도메인). 1건짜리와 지역별로 갈라지는 것(`execute-api.<지역>.amazonaws.com`)은 뺐다 (§12.35) |
@@ -572,7 +576,12 @@ C 의 기준을 "발견 0건"(2,520)에서 **"공격 분류 발견 0건"**(16,47
 변이 8건 전부 잡힘. 처음 구현에서 **동등 변이**("이름 찾으면 표지 안 봄")가 살아남아, 그 형태를 구현으로 삼았다 — 기존 줄을 안 건드림. 사용자 구현의 `"sfade-mode"`(문자열 속 오타)는 하이픈 표기 경우만 실패하는 **모양**으로 찾았다(§6). 700 테스트.
 같은 날 **첫 연구(파이썬 스캐너, `/Users/suseong/test/message.txt`) 검토** → DISCUSSION §9.8: 신호 목록은 대부분 맞았고 실패는 추출(정규식)·결합(합산) 두 층. 결함은 스크래치패드에서 import 만 해서 재현했다.
 
-1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60). **남은 것은 C 의 다음 후보** — §12.40 끝. 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
+**61교시** — 판정은 한 곳에. **59교시에 `localObjectRule` 안에만 넣은 "코드 블록만" 판정이, 같은 `scriptText()` 를 쓰는 `exfil-channel`·`obfuscated-eval` 에는 없었다.**
+재현: GitHub 코드 화면 모양(`<script type="application/json">`)에 텔레그램 주소 → HIGH. 실제로도 **정상 텔레그램 봇 라이브러리 코드 화면 2쪽이 HIGH**(github.com 만 접속, 스크래치패드 `ctas/neg2`).
+고침: `Context.scriptCode` 를 `<script>` 시작 태그에서 정하고 `scriptText()` 가 확인 → 세 규칙이 공유, `localObjectRule` 의 자체 판정은 지웠다(테스트로는 못 잡는 **중복** — 검토로 짚었다).
+측정: 데이터셋·다루는 글 16·실측 50·코퍼스 21 전후 같음(잃은 탐지 0). 테스트 `TestScriptRulesSkipDataBlocks`(음성 5 · 양성 3), 변이 5건 전부 잡힘 — 순서 테스트 둘(`코드블록뒤JSON`·`JSON뒤코드블록`)이 "시작 태그마다 다시 판정"을 붙잡는다. 709 테스트.
+
+1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60) · D(61). **남은 것은 C 의 다음 후보** — §12.40 끝. 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
 
 > **외래 콘텐츠(`<svg>`·`<math>`)는 보류로 결정했다** (35교시, DISCUSSION §12.14).
 > 미탐 방향이지만 ① 트리 구성(네임스페이스·integration point)이 필요하고 ② 반쪽 구현은 반대 방향 오탐을 만들며

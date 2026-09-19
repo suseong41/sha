@@ -51,6 +51,9 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | LOW | hardening | `inline-handler` | 인라인 이벤트 핸들러 (`onclick` 등) |
   | INFO | hardening | `target-blank-no-rel` | `target=_blank` 에 `rel=noopener` 없음 |
 
+  스크립트를 읽는 규칙(`exfil-channel` · `obfuscated-eval` · `local-system-object`)은 **실행되는 코드 블록만** 본다.
+  `<script type="application/json">` 같은 데이터 블록은 실행되지 않는다 — GitHub 코드 화면이 파일 내용을 거기 담는다.
+
 
 
 ---

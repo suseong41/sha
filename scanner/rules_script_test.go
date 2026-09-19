@@ -216,3 +216,29 @@ func TestLocalSystemObjectOffset(t *testing.T) {
 		t.Errorf("Col = %d, want 17", f.Col)
 	}
 }
+
+// 스크립트 규칙은 코드 블록만 봄. 데이터 블록(JSON 등)은 실행 안 됨 -> GitHub 코드 화면이 파일 내용을 여기 담음
+func TestScriptRulesSkipDataBlocks(t *testing.T) {
+	cases := []struct {
+		name, code, html string
+		want             int
+	}{
+		// 음성 — 데이터 블록
+		{"유출JSON", "exfil-channel", `<script type="application/json">{"u":"https://api.telegram.org/bot1/sendMessage"}</script>`, 0},
+		{"유출JSONLD", "exfil-channel", `<script type="application/ld+json">{"u":"https://api.telegram.org/bot1"}</script>`, 0},
+		{"eval템플릿", "obfuscated-eval", `<script type="text/template">eval(atob(x))</script>`, 0},
+		{"evalJSON", "obfuscated-eval", `<script type="application/json">"eval(atob(x))"</script>`, 0},
+		{"코드블록뒤JSON", "exfil-channel", `<script>var a = 1;</script><script type="application/json">"https://api.telegram.org/b"</script>`, 0},
+		// 양성 — 코드 블록
+		{"유출module", "exfil-channel", `<script type="module">fetch("https://api.telegram.org/b")</script>`, 1},
+		{"evalJS", "obfuscated-eval", `<script type="text/javascript">eval(atob(x))</script>`, 1},
+		{"JSON뒤코드블록", "exfil-channel", `<script type="application/json">{}</script><script>fetch("https://api.telegram.org/b")</script>`, 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := countCode(c.html, "", c.code); got != c.want {
+				t.Errorf("[%s] %s → %d건, want %d건", c.code, c.html, got, c.want)
+			}
+		})
+	}
+}

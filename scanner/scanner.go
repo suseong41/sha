@@ -10,12 +10,13 @@ type Severity int
 
 // Context: 모든 규칙이 공유하는 읽기 전용 정보
 type Context struct {
-	URL    string
-	Scheme string
-	Domain string
-	stack  openStack
-	cred   credentialTracker
-	forms  map[string]tokenizer.Token // id -> <form> 시작 태그
+	URL        string
+	Scheme     string
+	Domain     string
+	stack      openStack
+	cred       credentialTracker
+	forms      map[string]tokenizer.Token // id -> <form> 시작 태그
+	scriptCode bool                       // 지금 <script> 가 코드 블록인지. JSON 등이면 false
 }
 
 // Rule: 토큰을 하나씩 보고 발견을 돌려줌.
@@ -169,6 +170,9 @@ func ScanURL(src, pageURL string) Result {
 		case tokenizer.StartTagToken:
 			res.Tags[tok.Name]++
 			ctx.stack.start(tok)
+			if tok.Name == "script" {
+				ctx.scriptCode = codeScript(mustAttr(tok, "type"))
+			}
 		case tokenizer.EndTagToken:
 			ctx.stack.end(tok.Name)
 		}

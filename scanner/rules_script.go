@@ -31,9 +31,9 @@ func excerpt(s string, at, n int) string {
 	return strings.Join(strings.Fields(out), " ")
 }
 
-// scriptText(): <script> 안의 텍스트일 때만 내용 표기
+// scriptText(): 코드 블록인 <script> 안의 텍스트일 때만 내용 표기
 func scriptText(ctx *Context, tok tokenizer.Token) (string, bool) {
-	if tok.Type != tokenizer.TextToken || !ctx.InElement("script") {
+	if tok.Type != tokenizer.TextToken || !ctx.InElement("script") || !ctx.scriptCode {
 		return "", false
 	}
 	return tok.Data, true
@@ -121,17 +121,12 @@ var localObjects = []string{
 
 // 실행되는 스크립트가 로컬 시스템 객체를 만듦 -> 드롭퍼·다운로더
 type localObjectRule struct {
-	code  bool // 지금 script 블록이 코드인지
 	found bool // 한 페이지 한 건
 }
 
 func (r *localObjectRule) Check(ctx *Context, tok tokenizer.Token) []Finding {
-	if tok.Type == tokenizer.StartTagToken && tok.Name == "script" {
-		r.code = codeScript(mustAttr(tok, "type"))
-		return nil
-	}
 	data, ok := scriptText(ctx, tok)
-	if !ok || !r.code || r.found {
+	if !ok || r.found {
 		return nil
 	}
 	low := asciiLower(data)
