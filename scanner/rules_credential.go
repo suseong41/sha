@@ -46,6 +46,7 @@ func isSubmitter(tok tokenizer.Token) bool {
 // A. <input type=password>가 존재,
 // B. <form> 안에 있을 때,
 // C. 그 폼의 전송이 평문일 때.
+// 개발자 실수는 Medium, 남의 서버로 보내는 경우는 cross-origin-password-form이 HIGH로 잡음
 func ruleClearTextCredentials(ctx *Context, tok tokenizer.Token) []Finding {
 	var out []Finding
 	for _, dst := range ctx.CredentialDestinations() {
@@ -125,7 +126,7 @@ func (r *phishingFlagPage) Finish(ctx *Context) []Finding {
 }
 
 // 자격증명을 로컬 주소로 보내는 폼. 공격은 아니니 MEDIUM
-var localHotst = []string{"localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"}
+var localHosts = []string{"localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"}
 
 func ruleLocalCredentialPost(ctx *Context, tok tokenizer.Token) []Finding {
 	var out []Finding
@@ -148,7 +149,7 @@ func isLocalDestination(url string) bool {
 		return true
 	}
 	host := absoluteHost(url)
-	for _, h := range localHotst {
+	for _, h := range localHosts {
 		if host == h {
 			return true
 		}

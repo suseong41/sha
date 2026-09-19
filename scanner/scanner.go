@@ -51,6 +51,7 @@ func newRules() []Rule {
 		&sriRule{},
 		&targetBlankRule{},
 		&webShellPage{},
+		&localObjectRule{},
 		ruleFunc(ruleExfilChannel),
 		ruleFunc(ruleObfuscateEval),
 		ruleFunc(ruleMetaRefreshScheme),

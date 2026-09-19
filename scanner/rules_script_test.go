@@ -133,3 +133,52 @@ func TestObfucatedEvalArgument(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalSystemObject(t *testing.T) {
+	const code = "local-system-object"
+	cases := []struct {
+		name, html string
+		want       int
+	}{
+		// 음성
+		{"AJAX용ActiveX", `<script>var x = new ActiveXObject("Microsoft.XMLHTTP");</script>`, 0},
+		{"본문글자", `<script>var a = 1;</script><p>Set sh = CreateObject("WScript.Shell")</p>`, 0},
+		{"주석", `<script>var a = 1;</script><!-- WScript.Shell -->`, 0},
+		{"스타일", `<script>var a = 1;</script><style>/* WScript.Shell */</style>`, 0},
+		// 데이터 블록은 실행 안 됨 -> GitHub 코드 화면이 파일 내용을 여기 담음
+		{"JSON블록", `<script type="application/json">{"code":"CreateObject(\"WScript.Shell\")"}</script>`, 0},
+		{"템플릿블록", `<script type="text/template">new ActiveXObject("Scripting.FileSystemObject")</script>`, 0},
+		{"코드블록뒤JSON", `<script>var a = 1;</script><script type="application/json">{"x":"WScript.Shell"}</script>`, 0},
+		// 양성 — 방문자 PC 에 파일을 쓰거나 프로그램을 실행
+		{"VBScript드로퍼", `<script language="VBScript">Set sh = CreateObject("WScript.Shell")</script>`, 1},
+		{"FSO", `<script>var fso = new ActiveXObject("Scripting.FileSystemObject");</script>`, 1},
+		{"다운로더", `<script type="text/javascript">var s = new ActiveXObject("ADODB.Stream");</script>`, 1},
+		{"ShellApplication", `<script>new ActiveXObject("Shell.Application").ShellExecute("x")</script>`, 1},
+		{"type=vbscript", `<script type="text/vbscript">CreateObject("WScript.Shell")</script>`, 1},
+		{"대소문자", `<SCRIPT TYPE="Text/JavaScript">new ActiveXObject("wscript.SHELL")</SCRIPT>`, 1},
+		{"JSON뒤코드블록", `<script type="application/json">{}</script><script>CreateObject("WScript.Shell")</script>`, 1},
+		{"둘이어도한건", `<script>CreateObject("Scripting.FileSystemObject")</script><script>CreateObject("WScript.Shell")</script>`, 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := countCode(c.html, "", code); got != c.want {
+				t.Errorf("%s → %d건, want %d건", c.html, got, c.want)
+			}
+		})
+	}
+}
+
+// 발견 위치는 객체 이름을 가리킴
+func TestLocalSystemObjectOffset(t *testing.T) {
+	const html = "<script>\n  CreateObject(\"WScript.Shell\")\n</script>"
+	f, ok := findFirst(html, "", "local-system-object")
+	if !ok {
+		t.Fatal("발견되지 않음")
+	}
+	if f.Line != 2 {
+		t.Errorf("Line = %d, want 2", f.Line)
+	}
+	if f.Col != 17 {
+		t.Errorf("Col = %d, want 17", f.Col)
+	}
+}

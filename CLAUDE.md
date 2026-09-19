@@ -72,7 +72,7 @@ testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · 
 **둘 다 오탐/미탐의 바다가 되어 실패했다.** 그 원인 분석이 `DISCUSSION.md` 9절이다.
 
 설계 논의 전문: [DISCUSSION.md](DISCUSSION.md) ·
-Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 24 — 논의 12-31 · 58교시까지.
+Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 25 — 논의 12-32 · 59교시까지.
 갱신은 `Artifact read` 로 받은 최신판에서 시작한다 — 스크래치패드 사본은 사라지거나 낡을 수 있다)
 
 ---
@@ -194,12 +194,18 @@ go test ./scanner -run 'Corpus|Malicious' -v
 
 `.gitignore` 패턴에는 **`/` 를 붙인다** (`/coverage.out`, 아니면 어느 깊이에서든 잡힌다).
 
+| 증상 | 원인 |
+|---|---|
+| **양성 전부 0건 + 정상 코퍼스에 엉뚱한 HIGH** | 규칙이 **다른 것을 찾고 있다.** 59교시: `range localHotst` — 자동완성이 같은 타입(`[]string`)의 기존 변수를 골라 컴파일됐고, 새 목록 `localObjects` 는 안 쓰여도 **패키지 수준 변수라 오류가 없다**(Go 는 안 쓴 import·지역 변수에만 오류). `go vet` 도 말이 없다. 코퍼스 회귀가 없었다면 "안 뜬다"까지만 보였다 |
+| **변이가 "살아남음"인데 이상하다** | 변이가 **적용되지 않았을** 수 있다. 치환할 줄이 파일에 두 번 이상 있으면 스크립트가 거부하는데, 그 실패를 확인하지 않으면 **원본 코드로 테스트가 돈다**(59교시에 2건). 변이 스크립트는 적용 실패 시 멈추게 하고, 치환 문자열에는 그 규칙에만 있는 앞뒤 줄을 넣는다 |
+
 ---
 
 ## 7. 현재 상태 · 다음 할 일
 
 ```
-규칙 23종 · 테스트 645개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
+규칙 24종(HIGH 10) · 테스트 683개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
+C-TAS 악성 HTML 24,636개: HIGH 표본 3,792 · 공격 분류 발견 0건 13,398(54%) — 59교시 기준, 측정 도구는 보류 표 참고
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 실전 43쪽 측정: 393건 → 115건 · HIGH 0건 | 커버리지 main 98.5% · scanner 99.0% · tokenizer 95.1%
 패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · web(51~52교시, JSON API) · cmd/webscan
@@ -307,11 +313,11 @@ file:///etc/passwd          로컬 파일
 
 | 항목 | 성격 |
 |---|---|
-| **HIGH 규칙 9종** (2026-09-16 셈은 10종 — 예전 표기 8종은 틀렸다. 57교시에 `cleartext-credentials` 를 MEDIUM 으로 내림) | 정상 사이트에 안 나오는 게 정상 — 검증하려면 **악성 표본**이 필요. base-href-external · cross-origin-password-form · data-uri-document · exfil-channel · form-action-ip · meta-refresh-scheme · mixed-script-host · phishing-interstitial · webshell-signature |
+| **HIGH 규칙 10종** (2026-09-16 셈은 10종 — 예전 표기 8종은 틀렸다. 57교시에 `cleartext-credentials` 를 MEDIUM 으로 내리고, 59교시에 `local-system-object` 를 더함) | 정상 사이트에 안 나오는 게 정상 — 검증하려면 **악성 표본**이 필요. base-href-external · cross-origin-password-form · data-uri-document · exfil-channel · form-action-ip · local-system-object · meta-refresh-scheme · mixed-script-host · phishing-interstitial · webshell-signature |
 | ↳ **표본 조달 (2026-09-17)** | 사용자가 **C-TAS 에 머신러닝용 악성 HTML 데이터셋을 신청해 두었다.** 도착하면 1번을 진행한다. 받은 HTML 은 스캔만 하고 브라우저·미리보기로 열지 않으며 커밋하지 않는다(`testdata/live/` 처럼 git 에서 뺀 곳). |
 | ↳ **데이터셋 도착 (2026-09-19)** | `/Users/suseong/test/dataset/` — zip 8개 4.7GB(**풀지 않는다** — 압축 파일에서 메모리로 읽어 스캔). 분류: backdoor 132 · downloader 1,043 · exploit.kit 1,600 · miner 10,000 · ransomware 323 · trojan 10,000 · virus 841 · worm 697 표본. **원본 HTML 이 아니라 머신러닝 특징값**: 표본마다 `<sha256>.json` + 바이트 그림 `.bmp` 2개. JSON 의 `strings` 가 **줄 단위로 자른 원본 문자열**(글자 합이 원본의 95~98%) → `strings.Join(s, "\n")` 으로 되살린다. **한계**: 비ASCII 가 전부 빠짐(제로폭·유니코드 도메인 규칙은 이 데이터로 못 잰다) · 빈 줄 빠짐 · **페이지 URL 모름**(출처 규칙은 설계대로 물러남, 가짜 URL 은 부풀리므로 안 씀). 출처는 VirusShare·clean-mx, `av_detection` 에 백신 진단명. 측정 도구는 스크래치패드 `ctas/tool` (저장소 밖) |
 | ↳ **첫 측정 (2026-09-19, 24,636표본 · 50초)** | 발견 있음 89.8% 이지만 대부분 hardening·supply-chain(mixed-content·sri-missing·inline-handler). **HIGH 24.8% 는 착시**: `cleartext-credentials` 6,109건 중 miner 의 5,684건이 **한 사이트**(saltworld.net 포럼, 채굴 스크립트가 심긴 페이지를 페이지마다 수집 — **중복 제거 없이 비율을 내면 안 된다**). 게다가 이 HIGH 는 악성코드가 아니라 **피해 사이트의 http 로그인 폼** → §3 "HIGH 는 악성 행위에만" 과 충돌(결정 필요). **`webshell-signature` 0/132**: backdoor 표본에 시그니처가 문서 어디든 75회(c99shell 40 · r57shell 31 · byroenet 4) 있지만 `<script>` 안에는 **0회** — 규칙이 구조적으로 못 보는 자리를 보고 있었다(웹셸은 서버가 그린 관리 화면). 진짜로 보이는 HIGH: `form-action-ip` 9(`http://69.31.86.221/se.php`) · `data-uri-document` 4. 한 번도 안 뜬 HIGH: 출처 규칙(URL 없음, 설계대로) · mixed-script-host(비ASCII 빠짐) · exfil-channel·meta-refresh-scheme·phishing-interstitial(피싱이 아니라 악성코드 데이터). **재현율 구멍**: 발견 0건 비율 exploit.kit 49% · downloader 43% · worm 56% |
-| ↳ **▶ 다음에 할 일 (2026-09-19 · A·B 완료, 다음 C)** | ~~**A** `cleartext-credentials` HIGH → MEDIUM~~ — **57교시 완료**(사용자 확인 후). HIGH 표본 6,120 → **12**(form-action-ip 9 · data-uri-document 3), 발견 수 22,112 그대로 (§12.38). ~~**B** `webshell-signature` 가 본문도 보게~~ — **58교시 완료.** 보이는 이름 ∧ 파일 업로드 칸. backdoor 0 → **42**/132 · 웹셸을 다루는 정상 글 16쪽 오탐 7 → **0** (§12.39). **C** 재현율 구멍 분석(exploit.kit·downloader·worm 절반이 0건) — **먼저 사이트·틀 단위 중복 제거**. 실마리: 이름 없이 "서버 정보 ∧ 권한 문자열(`drwx`) ∧ 업로드 칸" = backdoor 48 · 그 밖 24,504개와 정상·다루는 글 0 (§12.39). |
+| ↳ **▶ 다음에 할 일 (2026-09-19 · A·B 완료, C 첫 규칙 완료)** | ~~**A** `cleartext-credentials` HIGH → MEDIUM~~ — **57교시 완료**(사용자 확인 후). HIGH 표본 6,120 → **12**(form-action-ip 9 · data-uri-document 3), 발견 수 22,112 그대로 (§12.38). ~~**B** `webshell-signature` 가 본문도 보게~~ — **58교시 완료.** 보이는 이름 ∧ 파일 업로드 칸. backdoor 0 → **42**/132 · 웹셸을 다루는 정상 글 16쪽 오탐 7 → **0** (§12.39). **C** 재현율 구멍 — 기준을 "발견 0건"이 아니라 **"공격 분류 발견 0건"** 으로 잰다(16,476개 · 67%). **59교시에 첫 규칙 `local-system-object`** → 13,398(54%) (§12.40). 남은 후보와 버린 이유는 §12.40 끝(채굴 4,007 · ransomware 323 · exploit kit 의 heap spray · 이름 없는 웹셸). 중복은 대표 호스트로 묶어 함께 보고한다. 실마리: 이름 없이 "서버 정보 ∧ 권한 문자열(`drwx`) ∧ 업로드 칸" = backdoor 48 · 그 밖 24,504개와 정상·다루는 글 0 (§12.39). |
 | ↳ **측정 도구 다시 만드는 법** | 스크래치패드는 사라질 수 있다. Go 로 `archive/zip` 을 열어 `.json` 만 읽고, `{"strings":[…]}` 를 `strings.Join(…, "\n")` 으로 이어 `scanner.ScanURL(html, "")` → 분류(zip 이름 `html.<분류>_1.zip`)별로 표본 수·발견 있음·HIGH 있음·규칙별 발동 표본 수를 센다. 저장소 밖 모듈에서 `replace github.com/suseong41/suseong-html-analyzer => <저장소 복사본>` 으로 붙인다. 되살린 HTML 은 **디스크에 쓰지 않는다.** 전체 24,636개가 약 50초. 증거 문자열은 90자로 잘라 3개씩만 찍는다. **58교시 도구**(`ctas/ws`): 토크나이저만 써서 시그니처·표지가 나온 **자리**(title · textarea · text · raw · attr · comment)를 표본별로 세고 후보 조건을 나란히 비교한다(`ws dataset <dir>` · `ws perfile <html…>`). **음성 표본 16쪽**(웹셸을 다루는 정상 글)의 출처는 DISCUSSION §12.39 — 다시 받을 때도 **웹셸 배포 사이트는 받지 않는다** |
 | ~~foster parenting~~ | **2026-09-17 측정으로 닫음** — `x/net/html` 을 대조군으로 표 6경우를 재니 우리 판정이 전부 일치했다. foster parenting 은 노드의 **자리**를 바꾸지만 폼 소속은 **form 요소 포인터**로 정해지고, 우리 규칙은 자리가 아니라 소속을 묻는다. 회귀 3건을 `differential_test.go` 에 고정 |
 | **단일 체계 위조(`аррӏе`)** | **2026-09-17 측정 후 보류 유지 — 만들지 않는다.** C-TAS 918개의 punycode 63개가 **전부 한글 단일**(키릴 0 · 그리스 0), 정상 코퍼스·실측 호스트 2,226개에는 punycode **0개**. 대상도 0건이고 **오탐을 잴 음성 표본도 0건**이라 규칙 추가 절차 2·3번을 지킬 수 없다. **다시 볼 조건**: 새 표본에서 **키릴·그리스 단일 체계 라벨이 1건이라도** 나오면 그때 만든다. 곁가지: punycode 63개의 TLD 는 `.com` 45 · `.me` 13 · `.co` 4 · `.net` 1 — "한글 라벨인데 한국 TLD 가 아니다"도 신호가 될 수 있으나 정상 표본이 0건이라 오탐률을 못 잰다 (§12.36) |
@@ -550,7 +556,14 @@ C-TAS 에서 걸린 건 피해 사이트의 http 로그인 폼이었다(§3 과 
 테스트는 내가 썼다(15경우 + 위치 · inject/class/fuzz 조각 · `malicious_sample.html` 11~14줄을 **같은 줄 수로** 교체해 뒤쪽 위치 보존). 사용자 구현은 검증본과 코드 동일(주석만 사용자 표현). 변이 7건 전부 잡힘.
 재측정: HIGH 표본 12 → 55, 다루는 글 0, 정상 0. 660 테스트.
 
-1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A 완료(57교시) · B 완료(58교시). **남은 것은 C(재현율)** — 보류 표의 "다음에 할 일". 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
+**59교시** — `local-system-object` (HIGH execution). **드로퍼는 방문자 PC 를 향한다 — 웹 페이지가 쓸 일이 없는 객체를 찾는다.**
+C 의 기준을 "발견 0건"(2,520)에서 **"공격 분류 발견 0건"**(16,476 · 67%)으로 바꿨다 — hardening·supply-chain 만 있는 표본도 공격엔 침묵한 것이다. 흔적 32가지를 정상 71쪽·다루는 글 16쪽과 나란히 세서, 정상에도 나오는 것(`ActiveXObject` 자체 · `</html>` 뒤 스크립트 · 숨긴 iframe · `eval`·`document.write`)은 버렸다.
+남은 것: `WScript.Shell` · `Shell.Application` · `Scripting.FileSystemObject` · `ADODB.Stream` — 공격0건 3,078 · 정상 0 · 다루는 글 0. 대표 호스트 1,676곳·드로퍼 40종(퍼진 감염). **코드 블록만**(빈 type · JS · VBScript) — GitHub 코드 화면의 `application/json` 블록을 받아 둔 페이지에서 확인했다. 한 페이지 한 건.
+테스트는 내가 썼다(15경우 + 위치 · inject/class/fuzz). 본문·스타일 음성을 **코드 블록 뒤에** 둬서 "코드 표시가 `</script>` 뒤까지 남는" 변이를 잡았다. 변이 9건 전부 잡힘 — 처음 2건은 **치환이 안 된 채** "살아남음"으로 찍혔다(§6).
+사용자 구현에서 `range localHotst` — 자동완성이 기존 변수를 골랐다(§6). 양성 전부 0 · **코퍼스 2쪽 HIGH** · 주입 21쪽 미탐으로 잡혔고 한 단어 고쳐 초록.
+재측정: 공격 분류 발견 0건 16,476 → **13,398(54%)** · HIGH 표본 55 → 3,792 · 정상 0. 683 테스트.
+
+1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 첫 규칙(59). **남은 것은 C 의 다음 후보** — §12.40 끝. 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
 
 > **외래 콘텐츠(`<svg>`·`<math>`)는 보류로 결정했다** (35교시, DISCUSSION §12.14).
 > 미탐 방향이지만 ① 트리 구성(네임스페이스·integration point)이 필요하고 ② 반쪽 구현은 반대 방향 오탐을 만들며

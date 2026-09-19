@@ -86,6 +86,52 @@ func (r *webShellPage) Finish(ctx *Context) []Finding {
 	}}
 }
 
+// 방문자 PC의 파일·프로세스를 다루는 Windows 객체
+var localObjects = []string{
+	"wscript.shell",
+	"shell.application",
+	"scripting.filesystemobject",
+	"adodb.stream",
+}
+
+// 실행되는 스크립트가 로컬 시스템 객체를 만듦 -> 드롭퍼·다운로더
+type localObjectRule struct {
+	code  bool // 지금 script 블록이 코드인지
+	found bool // 한 페이지 한 건
+}
+
+func (r *localObjectRule) Check(ctx *Context, tok tokenizer.Token) []Finding {
+	if tok.Type == tokenizer.StartTagToken && tok.Name == "script" {
+		r.code = codeScript(mustAttr(tok, "type"))
+		return nil
+	}
+	data, ok := scriptText(ctx, tok)
+	if !ok || !r.code || r.found {
+		return nil
+	}
+	low := asciiLower(data)
+	for _, obj := range localObjects {
+		if i := strings.Index(low, obj); 0 <= i {
+			r.found = true
+			return []Finding{{
+				Code: "local-system-object", Class: ClassExecution, Title: "스크립트가 방문자 PC 의 파일·프로세스 객체를 만듦", Severity: High,
+				Offset: tok.Offset + i, Evidence: excerpt(data, i, 48),
+			}}
+		}
+	}
+	return nil
+}
+
+// codeScript(): script 블록이 코드인지. 빈 type · JS · VBScript 만
+func codeScript(typ string) bool {
+	switch asciiLower(strings.TrimSpace(typ)) {
+	case "", "module", "text/javascript", "application/javascript", "text/ecmascript", "application/ecmascript",
+		"application/x-javascript", "text/x-javascript", "text/jscript", "text/vbscript", "text/vbs":
+		return true
+	}
+	return false
+}
+
 var exfilHosts = []string{
 	"api.telegram.org",
 	"discord.com/api",

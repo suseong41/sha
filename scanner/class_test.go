@@ -51,6 +51,7 @@ func TestEveryRuleHasClass(t *testing.T) {
 <a href="javascript:alert(1)" target="_blank">z</a>
 <p onclick="x()">보이지` + "​" + `않음</p>
 <p>c99shell</p><input type="file">
+<script>new ActiveXObject("WScript.Shell")</script>
 <script>eval(atob(x)); fetch("https://api.telegram.org/b/x")</script>`
 
 	want := map[string]Class{
@@ -67,6 +68,7 @@ func TestEveryRuleHasClass(t *testing.T) {
 		"inline-handler":             ClassHardening,
 		"zero-width":                 ClassEvasion,
 		"webshell-signature":         ClassExecution,
+		"local-system-object":        ClassExecution,
 		"obfuscated-eval":            ClassEvasion,
 		"exfil-channel":              ClassExfiltration,
 	}
