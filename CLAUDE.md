@@ -304,7 +304,7 @@ file:///etc/passwd          로컬 파일
 | **HIGH 규칙 10종** (2026-09-16 코드에서 다시 셈 — 예전 표기 8종은 틀렸다) | 정상 사이트에 안 나오는 게 정상 — 검증하려면 **악성 표본**이 필요. base-href-external · cleartext-credentials · cross-origin-password-form · data-uri-document · exfil-channel · form-action-ip · meta-refresh-scheme · mixed-script-host · phishing-interstitial · webshell-signature |
 | ↳ **표본 조달 (2026-09-17)** | 사용자가 **C-TAS 에 머신러닝용 악성 HTML 데이터셋을 신청해 두었다.** 도착하면 1번을 진행한다. 받은 HTML 은 스캔만 하고 브라우저·미리보기로 열지 않으며 커밋하지 않는다(`testdata/live/` 처럼 git 에서 뺀 곳). |
 | ~~foster parenting~~ | **2026-09-17 측정으로 닫음** — `x/net/html` 을 대조군으로 표 6경우를 재니 우리 판정이 전부 일치했다. foster parenting 은 노드의 **자리**를 바꾸지만 폼 소속은 **form 요소 포인터**로 정해지고, 우리 규칙은 자리가 아니라 소속을 묻는다. 회귀 3건을 `differential_test.go` 에 고정 |
-| 단일 체계 위조(`аррӏе`) | 유니코드 confusables 표 필요 |
+| **단일 체계 위조(`аррӏе`)** | **2026-09-17 측정 후 보류 유지 — 만들지 않는다.** C-TAS 918개의 punycode 63개가 **전부 한글 단일**(키릴 0 · 그리스 0), 정상 코퍼스·실측 호스트 2,226개에는 punycode **0개**. 대상도 0건이고 **오탐을 잴 음성 표본도 0건**이라 규칙 추가 절차 2·3번을 지킬 수 없다. **다시 볼 조건**: 새 표본에서 **키릴·그리스 단일 체계 라벨이 1건이라도** 나오면 그때 만든다. 곁가지: punycode 63개의 TLD 는 `.com` 45 · `.me` 13 · `.co` 4 · `.net` 1 — "한글 라벨인데 한국 TLD 가 아니다"도 신호가 될 수 있으나 정상 표본이 0건이라 오탐률을 못 잰다 (§12.36) |
 | ~~eTLD+1 표 확장~~ | **2026-09-17 측정 후 24 → 39개.** 호스트 3,141개를 PSL(`x/net/publicsuffix`)과 대조해 어긋난 555개의 접미사만 넣었다. 대부분이 무료 호스팅(github.io 240 · vercel.app 214 · netlify.app 47 · framer.app 12 — 전부 C-TAS 악성 도메인). 1건짜리와 지역별로 갈라지는 것(`execute-api.<지역>.amazonaws.com`)은 뺐다 (§12.35) |
 
 ### C-TAS 실측 (2026-09-15) — 규칙의 한계가 드러났다
@@ -527,7 +527,7 @@ PSL 의 사설 구역이 정확히 이 목적이다 — 묻는 것은 "같은 �
 테스트에 `{"victim.github.io","victim.github.io",true}` 를 함께 넣었다: "남남으로 본다"만 시험하면 **전부 남남으로 보는 코드**도 통과한다.
 변이 검사 5건(개별 접미사 제거 · 표 비우기) 전부 잡힘.
 
-1. **남은 보류**: 단일 체계 위조(confusables 표) · HIGH 규칙 10종 실측(C-TAS 데이터셋 대기) ·
+1. **남은 보류**: HIGH 규칙 10종 실측 — **C-TAS 머신러닝용 악성 HTML 데이터셋 승인 대기 중.** 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에) ·
    HIGH 규칙들은 실측 기회가 없다(정상 사이트에 안 나오는 게 정상).
 
 > **외래 콘텐츠(`<svg>`·`<math>`)는 보류로 결정했다** (35교시, DISCUSSION §12.14).
