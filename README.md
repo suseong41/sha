@@ -55,6 +55,19 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   스크립트를 읽는 규칙(`exfil-channel` · `obfuscated-eval` · `local-system-object` · `encoded-shellcode`)은 **실행되는 코드 블록만** 본다.
   `<script type="application/json">` 같은 데이터 블록은 실행되지 않는다 — GitHub 코드 화면이 파일 내용을 거기 담는다.
 
+* **HIGH 규칙의 실측 근거** — 악성 HTML 24,636개로 재면 HIGH 11종 중 **5종**이 실제 표본에서 확인된다.
+
+  | 확인됨 | 표본 | 아직 합성·주입 테스트뿐 | 왜 |
+  |---|---:|---|---|
+  | `local-system-object` | 3,741 | `cross-origin-password-form` · `base-href-external` | 표본에 페이지 URL 이 없어 출처 규칙이 설계대로 물러난다 |
+  | `encoded-shellcode` | 154 | `mixed-script-host` | 표본에서 비ASCII 가 빠졌다 |
+  | `webshell-signature` | 59 | `exfil-channel` · `phishing-interstitial` · `meta-refresh-scheme` | 악성코드 표본이라 피싱 수법이 없다 — 0건 |
+  | `form-action-ip` | 9 | | |
+  | `data-uri-document` | 3 | | |
+
+  합성 양성은 **규칙이 살아 있다**는 증거이지 그 공격을 실제로 만난다는 증거가 아니다.
+  규칙별 근거와 "무엇이 있어야 잴 수 있나"는 [DISCUSSION.md](DISCUSSION.md) §12.46 에 있다.
+
 
 
 ---
@@ -146,7 +159,7 @@ go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 1m
 
 #### 회귀 코퍼스
 
-`testdata/corpus/` 에 실제 웹에서 받은 **정상 페이지 21쪽**이 있다(한국어·영어·일본어·키릴·아랍·데바나가리).
+`testdata/` 에 실제 웹에서 받은 **정상 페이지 21쪽**이 있다(`corpus/` 20쪽 + `jnu_main.html`, 한국어·영어·일본어·키릴·아랍·데바나가리).
 `scanner/corpus_test.go` 가 두 방향으로 단언한다.
 
 | | 정상 21쪽 | `malicious_sample.html` |

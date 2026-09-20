@@ -74,7 +74,7 @@ testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · 
 설정 파일을 `exec` 하므로 **실행하지 말고** 함수만 import 해서 잰다.
 
 설계 논의 전문: [DISCUSSION.md](DISCUSSION.md) ·
-Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 30 — 논의 9-0(첫 연구) · 12-36(ransomware) · 12-37(가려진 리다이렉트) · 62교시까지.
+Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 31 — 논의 9-0(첫 연구) · 12-36(ransomware) · 12-37(가려진 리다이렉트) · 12-38(HIGH 규칙의 근거) · 62교시까지.
 갱신은 `Artifact read` 로 받은 최신판에서 시작한다 — 스크래치패드 사본은 사라지거나 낡을 수 있다)
 
 ---
@@ -198,6 +198,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 | **진단 테스트가 아무것도 안 찍는다** | `go test ./패키지` 는 **통과한 테스트의 표준 출력을 숨긴다** — `-v` 를 붙인다. 62교시에 이걸 모르고 "글에는 비문자가 없다"고 결론냈다가 철회했다(실제로는 서식 문자가 있었다) |
 | `sed -n '/시작/,/^}/p'` 결과가 잘림 | `}{` 같은 줄이 범위 끝으로 오인된다. 읽지 말고 **실행해서 값을 찍어라** |
 | 검증 도구가 "문제 없음"이라는데 실제로는 돌지도 않음 | `도구 | head && echo 통과` — **파이프의 종료 코드는 마지막 명령(head) 것**이라 앞의 실패가 가려진다. zsh 에는 bash 의 `PIPESTATUS` 도 없다(빈칸). 출력을 파일로 받고 `$?` 를 직접 본다. **대조군(일부러 틀린 입력)** 이 실패하는지 같이 본다 — actionlint 가 git 저장소가 아니라 시작도 못 했는데 통과로 보였다(2026-09-16) |
+| **거르는 설정을 넣었는데 그대로 들어간다** | **허용 목록은 맨 앞에 `*` 가 있어야 한다.** `!` 는 "앞서 제외한 것을 되살린다"라서 제외 줄이 없으면 아무것도 안 걸러진다. 2026-09-20 배포 준비 점검에서 발견 — 커밋된 `.dockerignore` 에 `*` 가 없어 `testdata/live` 의 받은 페이지가 빌드 컨텍스트로 갔다(§12.30 정정). **잰 파일과 커밋된 파일이 다를 수 있다**: 거르는 설정은 크기가 아니라 **무엇이 들어갔는지 목록**으로 확인한다(`COPY . /ctx` 뒤 `find`) |
 | **스크래치패드 명령이 사용자 저장소를 바꿈** | `cd 스크래치패드 && …` 가 실패하면 **다음 줄부터는 이전 작업 디렉터리에서** 돈다. 스크래치패드는 세션 중에 비워질 수 있다(2026-09-15 실제로 `perl -pi` 가 `main.go` 를 고침 — `git diff` 로 한 줄뿐임을 확인하고 되돌림). 검증 스크립트는 **`set -e` + 절대 경로 + `mkdir -p` 먼저** |
 
 **도구가 못 잡은 실제 결함들** — 테스트가 유일한 방어선이었다:
@@ -206,6 +207,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 `urlMixedContent` 죽은 함수
 
 `.gitignore` 패턴에는 **`/` 를 붙인다** (`/coverage.out`, 아니면 어느 깊이에서든 잡힌다).
+`.dockerignore` 는 **허용 목록**이다 — 첫 줄이 `*`, 그 뒤가 `!` 목록. `*` 가 빠지면 조용히 전부 통과한다.
 
 | 증상 | 원인 |
 |---|---|
@@ -220,6 +222,8 @@ go test ./scanner -run 'Corpus|Malicious' -v
 ```
 규칙 25종(HIGH 11) · 테스트 732개 · 정상 코퍼스 21쪽 · 실전 측정 도구(tools/measure.sh) · 퍼징 5,600만 케이스 무결
 C-TAS 악성 HTML 24,636개: HIGH 표본 3,955 · 공격 분류 발견 0건 13,240(54%) — 62교시 기준, 측정 도구는 보류 표 참고
+  └ HIGH 11종 중 실제 표본으로 확인된 것은 5종(local-system-object 3,741 · encoded-shellcode 154 · webshell-signature 59 ·
+    form-action-ip 9 · data-uri-document 3). 나머지 6종은 합성·주입뿐 — URL 없음 2 · 비ASCII 없음 1 · 피싱 표본 없음 3(§12.46)
 원본 97개 항목 이식 완료 (이식 18 · 조합 재료 3 · 버림 76)
 실전 43쪽 측정: 393건 → 115건 · HIGH 0건 | 커버리지 main 98.5% · scanner 99.0% · tokenizer 95.1%
 패키지: tokenizer · scanner · fetcher(47~49교시, SSRF 방어 + 자원 상한) · web(51~52교시, JSON API) · cmd/webscan
