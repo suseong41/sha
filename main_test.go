@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/suseong41/suseong-html-analyzer/scanner"
+	"github.com/suseong41/suseong-html-analyzer/version"
 )
 
 // runCLI() run 호출, stdout stderr 문자열 반환
@@ -99,5 +100,31 @@ func TestRunSortsBySeverity(t *testing.T) {
 			t.Errorf("%v 뒤에 %v — 내림차순이 아니다", prev, sev)
 		}
 		prev = sev
+	}
+}
+
+// -version 은 파일 인자 없이도 버전을 찍고 0 으로 끝난다.
+// 자리가 틀리면(NArg 검사 뒤) 파일을 안 줬다고 2 로 끝난다.
+func TestRunVersion(t *testing.T) {
+	code, stdout, stderr := runCLI("-version")
+	if code != 0 {
+		t.Errorf("종료 코드 %d, want 0 — 파일 인자 검사보다 먼저 끝나야 함", code)
+	}
+	if want := "suseong-html-analyzer " + version.V + "\n"; stdout != want {
+		t.Errorf("stdout = %q, want %q", stdout, want)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q — 버전은 표준 출력으로 나간다", stderr) // 파이프로 받는 값이라
+	}
+}
+
+// 버전만 물었으면 스캔은 하지 않는다 — 파일을 줘도 발견을 찍지 않고 0 으로 끝난다.
+func TestRunVersionSkipsScan(t *testing.T) {
+	code, stdout, _ := runCLI("-version", "testdata/malicious_sample.html", "https://bank.example.com/")
+	if code != 0 {
+		t.Errorf("종료 코드 %d, want 0", code) // 악성 샘플이지만 스캔 안 함
+	}
+	if strings.Contains(stdout, "HIGH") {
+		t.Errorf("버전만 물었는데 스캔함:\n%s", stdout)
 	}
 }

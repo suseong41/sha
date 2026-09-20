@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/suseong41/suseong-html-analyzer/scanner"
+	"github.com/suseong41/suseong-html-analyzer/version"
 )
 
 // map: [키]값{}
@@ -30,11 +31,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 	minName := fs.String("min", "info", "최소 심각도 (info|low|medium|high)")
 	className := fs.String("class", "", "분류로 거르기 (exfiltration|execution|origin|supply-chain|evasion|hardening)")
 	showStats := fs.Bool("stats", false, "토큰·태그 통계도 출력")
+	showVersion := fs.Bool("version", false, "버전을 찍고 끝낸다")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 2
+	}
+
+	if *showVersion {
+		fmt.Fprintf(stdout, "suseong-html-analyzer %s\n", version.V)
+		return 0
 	}
 
 	if n := fs.NArg(); n < 1 || 2 < n {

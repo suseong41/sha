@@ -89,6 +89,9 @@ go build .
 
 # 분류로 거르기
 ./suseong-html-analyzer -class exfiltration page.html https://example.com/
+
+# 버전
+./suseong-html-analyzer -version
 ```
 
 출력은 `파일:줄:칸: 심각도 분류 [규칙] 근거` 형식이라 에디터에서 바로 점프할 수 있다.
@@ -128,6 +131,12 @@ curl -s -H 'Content-Type: application/json' \
   "notes": []
 }
 ```
+
+동시에 처리하는 스캔은 **기본 4개**다(`-max-scans`). 자리가 없으면 2초까지 기다렸다가 `503` 과 `Retry-After: 1` 을 돌려준다.
+5MB 페이지 하나가 약 50MB 를 쓰기 때문에 정한 값이다 — 메모리 256MB 로 제한한 컨테이너는 동시 10개에서 죽는다(측정: DISCUSSION §12.49).
+
+서버가 살아 있는지는 `GET /healthz` 로 묻는다 — `{"status":"ok"}` 만 돌려주고, 밖으로 나가지 않으며 로그도 남기지 않는다.
+도는 버전은 시작 로그와 이미지 라벨에 있다(`/webscan -version` 은 없다 — 서버는 `-addr` 만 받는다).
 
 (일부 필드와 발견을 줄였다.) 발견은 심각도 순으로 정렬되어 온다.
 내부망·사설 IP·루프백 주소는 가져오지 않는다 — `192.168.0.1` 같은 주소를 넣으면 `502` 가 돌아온다.

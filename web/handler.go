@@ -25,25 +25,42 @@ const (
 // 페이지 헤더는 nginx가
 const csp = "default-src 'none'; frame-ancestors 'none'"
 
+// DefaultMaxScans: 동시에 처리할 스캔 수.
+const DefaultMaxScans = 4
+
+var maxWait = 2 * time.Second
+
 type fetchFunc func(ctx context.Context, rawURL string) (*fetcher.Page, error)
 
 type handler struct {
 	fetch fetchFunc
 	log   *slog.Logger
+	slots chan struct{}
 }
 
-// New(): 진짜 수집기를 쓰는 핸들러.
-func New(f *fetcher.Fetcher, log *slog.Logger) http.Handler { return newLoggedHandler(f.Get, log) }
+// New(): 진짜 수집기를 쓰는 핸들러. max는 동시에 처리할 스캔 수
+func New(f *fetcher.Fetcher, log *slog.Logger, max int) http.Handler {
+	return newLoggedHandler(f.Get, log, max)
+}
 
 // newHandler(): 로그를 버리는 핸들러.
 func newHandler(fetch fetchFunc) http.Handler {
-	return newLoggedHandler(fetch, slog.New(slog.DiscardHandler))
+	return newLoggedHandler(fetch, slog.New(slog.DiscardHandler), 0)
 }
 
-func newLoggedHandler(fetch fetchFunc, log *slog.Logger) http.Handler {
-	h := &handler{fetch: fetch, log: log}
+// health(): 살아 있는지만 응답
+func health(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func newLoggedHandler(fetch fetchFunc, log *slog.Logger, max int) http.Handler {
+	if max <= 0 {
+		max = DefaultMaxScans
+	}
+	h := &handler{fetch: fetch, log: log, slots: make(chan struct{}, max)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/scan", h.scan)
+	mux.HandleFunc("GET /healthz", health)
 	return secureHeaders(mux)
 }
 
@@ -126,6 +143,23 @@ func (h *handler) reject(w http.ResponseWriter, status int, reason, msg string) 
 }
 
 func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
+	select {
+	case h.slots <- struct{}{}:
+		defer func() { <-h.slots }()
+	default:
+		wait := time.NewTimer(maxWait)
+		defer wait.Stop()
+		select {
+		case h.slots <- struct{}{}:
+			defer func() { <-h.slots }()
+		case <-r.Context().Done():
+			return
+		case <-wait.C:
+			w.Header().Set("Retry-After", "1")
+			h.reject(w, http.StatusServiceUnavailable, "busy", "지금은 처리 중인 요청이 많습니다")
+			return
+		}
+	}
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || mt != "application/json" {
 		h.reject(w, http.StatusUnsupportedMediaType, "content_type", "Content-Type 은 application/json 이어야 함")
 		return

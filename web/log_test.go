@@ -20,7 +20,7 @@ import (
 // logged(): 로그를 버퍼에 JSON 으로 받는 핸들러.
 func logged(fetch fetchFunc) (http.Handler, *bytes.Buffer) {
 	var buf bytes.Buffer
-	return newLoggedHandler(fetch, slog.New(slog.NewJSONHandler(&buf, nil))), &buf
+	return newLoggedHandler(fetch, slog.New(slog.NewJSONHandler(&buf, nil)), 0), &buf
 }
 
 // records(): 로그 한 줄 -> JOSN 객체 하나
