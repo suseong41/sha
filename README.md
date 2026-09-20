@@ -182,3 +182,12 @@ go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 1m
 ```sh
 go test ./scanner -run Corpus -v      # 페이지마다 서브테스트로 갈라진다
 ```
+
+---
+
+### 라이선스
+
+MIT — [LICENSE](LICENSE). 마음대로 쓰고 고치고 배포해도 된다. 저작권 고지만 남겨 달라.
+
+`old_c_files/ExternalLib/gTest/` 만 예외다 — Google 의 GoogleTest(BSD 3-Clause)이고,
+Go 로 옮기기 전 C++ 원본을 시험하던 코드라 빌드에도 이미지에도 들어가지 않는다. [NOTICE](NOTICE) 참고.

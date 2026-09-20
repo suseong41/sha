@@ -61,7 +61,9 @@ fetcher/       SSRF 방어 수집기 — addr.go(주소 판정) · fetch.go(Dial
 web/           JSON API — POST /api/scan(동시 4개 상한) · GET /healthz (my_homepage 의 nginx 뒤에서 돈다)
 cmd/webscan/   API 서버 진입점 — http.Server 타임아웃 · -addr
 version/       V 하나 — CLI(-version) · 서버 시작 로그 · 이미지 라벨이 같은 값을 말한다 (63교시)
-Dockerfile     멀티 스테이지 → scratch · .dockerignore 는 허용 목록
+Dockerfile     멀티 스테이지 → scratch · TARGETARCH 로 크로스 컴파일 · .dockerignore 는 허용 목록(첫 줄 *)
+LICENSE·NOTICE MIT(suseong41) · gTest 는 BSD-3-Clause 라 따로 고지 (66교시)
+.github/workflows/  ci.yml(gofmt·vet·test·빌드·스모크·govulncheck·퍼징·**이미지 빌드**) · release.yml(v* 태그 → Docker Hub)
 docs/INTEGRATION.md  my_homepage 연동 명세 — API 계약 · 그리는 쪽 보안 규칙 · compose · nginx · Cloudflare · 검증 기록
 tools/         measure.sh — 실전 측정 (받은 페이지는 testdata/live/, 커밋 안 함)
 old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음)
@@ -628,6 +630,14 @@ compose `healthcheck` 에는 여전히 못 넣는다(scratch 에 셸·curl 없�
 **48교시 테스트가 내 설계 결함을 잡았다** — `select` 는 준비된 갈래가 여럿이면 **무작위로** 고른다. 자리 잡기만 있는 바깥 `select` 를 두고 취소·시간 초과는 안쪽에서만 따지게 고쳤다.
 테스트는 내가 썼다(6개). 변이 8건 전부 잡힘. 744 테스트. 실제 이미지 재측정: 동시 256 요청에도 OOM 없이 112MB.
 
+
+**66교시** — 배포 준비: LICENSE · NOTICE · CI 이미지 빌드 · 릴리스 워크플로. **남에게 넘기려면 코드 주변이 필요하다.**
+LICENSE 는 **문안만** 둔다 — GitHub 라이선스 인식은 파일 전체를 표준 문안과 대조해서, 뒤에 설명을 붙이면 `Other` 로 잡힌다. 제3자 고지(gTest = BSD-3-Clause)는 `NOTICE` 로 뺐다.
+CI 에 `image` 잡 추가 — 스모크는 **`/healthz` 만** 두드린다(바깥을 스캔하면 네트워크로 흔들리고, **흔들리는 빨간불은 무시당한다**). 시작 로그의 `"version"`·`"max_scans"` 도 검사 → 옛 이미지면 잡힌다.
+멀티아키는 **에뮬레이션이 아니라 크로스 컴파일**: `--platform=$BUILDPLATFORM` + `GOOS/GOARCH=$TARGETOS/$TARGETARCH` → amd64·arm64 합쳐 **6초**(QEMU 면 분 단위).
+`release.yml` 순서에 뜻이 있다: ① 태그 vs `version.V` 대조(다르면 아무것도 하기 전에 멈춤) → ② 테스트(**푸시한 이미지는 되돌릴 수 없다**) → ③ 빌드·푸시(라벨 버전은 태그에서).
+워크플로 파일은 사용자 요청으로 **내가 직접 넣었다**(구현 코드는 여전히 사용자가 친다). 확인: YAML 파싱 + **대조군**(깨뜨린 YAML 은 실패) · 스모크를 로컬에서 그대로 실행 · 태그 대조 스크립트 로컬 시험(v0.1.0 통과 / v0.2.0 멈춤) · 단일·멀티아키 빌드 실측.
+**남은 것**: GitHub 시크릿 `DOCKERHUB_USERNAME`·`DOCKERHUB_TOKEN`(사용자) → 그다음 `v0.1.0` 태그.
 
 1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60 · 62) · D(61) · ransomware 분석(만들지 않음). **C 마무리.** 다시 볼 조건들은 보류 표에(단일 체계 위조 · browlock). 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
 

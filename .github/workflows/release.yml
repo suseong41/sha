@@ -1,0 +1,62 @@
+name: Release
+
+# 태그를 밀면 돈다 — 태그가 곧 배포다. v0.1.0 -> 이미지 :0.1.0 과 :latest
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # 태그와 version.V 가 다르면 여기서 멈춘다 — 이미지가 자기 버전을 거짓말하지 않게.
+      - name: 태그와 상수 대조
+        id: ver
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          got=$(grep -oE '"[0-9]+\.[0-9]+\.[0-9]+"' version/version.go | tr -d '"')
+          echo "태그 $GITHUB_REF_NAME · version.V $got"
+          if [ "$want" != "$got" ]; then
+            echo "태그($want)와 version.V($got)가 다르다 — 상수를 고치고 태그를 다시 달아라"
+            exit 1
+          fi
+          echo "version=$got" >> "$GITHUB_OUTPUT"
+
+      # 푸시된 이미지는 되돌릴 수 없다. 올리기 전에 전부 돌린다.
+      - name: 테스트
+        run: go test ./...
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Dockerfile 이 TARGETARCH 로 크로스 컴파일한다 — QEMU 없이 두 아키텍처가 몇 초에 끝난다.
+      - name: 빌드 · 푸시 (amd64 · arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/suseong-html-analyzer:${{ steps.ver.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/suseong-html-analyzer:latest
+          # 버전은 저장소에 두 번 적지 않는다 — 태그에서 온 값을 라벨로 붙인다.
+          labels: |
+            org.opencontainers.image.title=suseong-html-analyzer
+            org.opencontainers.image.description=HTML 정적 보안 스캐너 — JSON API
+            org.opencontainers.image.version=${{ steps.ver.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT

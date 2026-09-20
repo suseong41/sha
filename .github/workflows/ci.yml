@@ -95,3 +95,29 @@ jobs:
           name: fuzz-crash-${{ matrix.target }}
           path: "**/testdata/fuzz/**"
           if-no-files-found: ignore
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 허용 목록(.dockerignore)에서 패키지가 빠지면 여기서 죽는다 — 배포하는 날이 아니라.
+      - name: 이미지 빌드
+        run: docker build -t sha:ci .
+
+      # 바깥 사이트를 스캔하지 않는다. 네트워크 사정으로 흔들리는 빨간불은 무시당한다.
+      - name: 스모크 - 상태 확인
+        run: |
+          docker run -d --name sha-ci -p 127.0.0.1:8080:8080 sha:ci
+          for i in $(seq 20); do
+            body=$(curl -sf http://127.0.0.1:8080/healthz) && break
+            sleep 0.5
+          done
+          echo "받은 본문: $body"
+          [ "$body" = '{"status":"ok"}' ] || { docker logs sha-ci; exit 1; }
+
+      # 시작 로그가 이 이미지가 지금 코드인지 말해 준다 (63 · 65교시).
+      - name: 스모크 - 시작 로그에 버전과 상한
+        run: |
+          docker logs sha-ci 2>&1 | grep -q '"version":"' || { docker logs sha-ci; exit 1; }
+          docker logs sha-ci 2>&1 | grep -q '"max_scans":' || { docker logs sha-ci; exit 1; }
