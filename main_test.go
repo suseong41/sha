@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/suseong41/suseong-html-analyzer/scanner"
-	"github.com/suseong41/suseong-html-analyzer/version"
+	"github.com/suseong41/sha/scanner"
+	"github.com/suseong41/sha/version"
 )
 
 // runCLI() run 호출, stdout stderr 문자열 반환
@@ -110,7 +110,7 @@ func TestRunVersion(t *testing.T) {
 	if code != 0 {
 		t.Errorf("종료 코드 %d, want 0 — 파일 인자 검사보다 먼저 끝나야 함", code)
 	}
-	if want := "suseong-html-analyzer " + version.V + "\n"; stdout != want {
+	if want := "sha " + version.V + "\n"; stdout != want {
 		t.Errorf("stdout = %q, want %q", stdout, want)
 	}
 	if stderr != "" {

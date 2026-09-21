@@ -1,7 +1,7 @@
 # SHA — Suseong-Html-Analyzer
 
-![CI](https://github.com/suseong41/suseong-html-analyzer/actions/workflows/ci.yml/badge.svg)
-[![Docker Hub](https://img.shields.io/docker/v/suseong41/suseong-html-analyzer?label=docker%20hub&sort=semver)](https://hub.docker.com/r/suseong41/suseong-html-analyzer)
+![CI](https://github.com/suseong41/sha/actions/workflows/ci.yml/badge.svg)
+[![Docker Hub](https://img.shields.io/docker/v/suseong41/sha?label=docker%20hub&sort=semver)](https://hub.docker.com/r/suseong41/sha)
 
 **SHA**(Suseong-Html-Analyzer)는 HTML을 파싱해 **XSS·피싱·리소스 위험**을 찾아내는 정적 보안 스캐너다 (Go).
 외부 의존성 없이 표준 라이브러리만으로 동작한다. 아래에서는 **SHA** 로 부른다.
@@ -75,26 +75,26 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
 
 ### 사용 방법
 
-실행 파일과 이미지 이름은 `suseong-html-analyzer` 그대로다 — SHA 는 부르는 이름이고, 식별자는 바꾸지 않았다.
+빌드하면 실행 파일 이름은 `sha` 다. 예전 이름으로 받아 두신 것이 있다면 [이름이 바뀌었다](#이름이-바뀌었다) 를 보라.
 
 ```sh
 go build .
 
 # 파일만 스캔
-./suseong-html-analyzer page.html
+./sha page.html
 
 # URL을 주면 출처 기반 규칙(외부 도메인 폼·혼합 콘텐츠·SRI)이 켜진다
-./suseong-html-analyzer page.html https://example.com/
+./sha page.html https://example.com/
 
 # 최소 심각도로 거르기 · 통계 함께 보기
-./suseong-html-analyzer -min medium page.html https://example.com/
-./suseong-html-analyzer -stats page.html
+./sha -min medium page.html https://example.com/
+./sha -stats page.html
 
 # 분류로 거르기
-./suseong-html-analyzer -class exfiltration page.html https://example.com/
+./sha -class exfiltration page.html https://example.com/
 
 # 버전
-./suseong-html-analyzer -version
+./sha -version
 ```
 
 출력은 `파일:줄:칸: 심각도 분류 [규칙] 근거` 형식이라 에디터에서 바로 점프할 수 있다.
@@ -116,7 +116,7 @@ CI에서 `-min high` 로 걸어 실패시킬 수 있다.
 SHA 이미지는 Docker Hub 에 있다 — `linux/amd64` · `linux/arm64`, 3.4MB(`scratch` 기반이라 셸도 패키지 관리자도 없다).
 
 ```sh
-docker run --rm -p 127.0.0.1:8080:8080 suseong41/suseong-html-analyzer:0.1.0
+docker run --rm -p 127.0.0.1:8080:8080 suseong41/sha:0.2.0
 
 # 직접 빌드하려면
 docker build -t sha . && docker run --rm -p 127.0.0.1:8080:8080 sha
@@ -188,6 +188,24 @@ go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 1m
 ```sh
 go test ./scanner -run Corpus -v      # 페이지마다 서브테스트로 갈라진다
 ```
+
+---
+
+### 이름이 바뀌었다
+
+2026-09-21 에 식별자를 `suseong-html-analyzer` 에서 **`sha`** 로 바꿨다. 부르는 이름은 **SHA**(Suseong-Html-Analyzer)다.
+
+| | 옛 이름 | 지금 |
+|---|---|---|
+| 저장소 · 모듈 | `github.com/suseong41/suseong-html-analyzer` | `github.com/suseong41/sha` |
+| 이미지 | `suseong41/suseong-html-analyzer` | `suseong41/sha` |
+| 실행 파일 | `suseong-html-analyzer` | `sha` |
+
+전부 소문자다 — Docker 가 대문자 이미지 이름을 받지 않기 때문에, 한 곳이 소문자여야 한다면 **전부** 소문자인 편이 어긋남이 없다.
+대문자 `SHA` 는 사람이 읽는 자리에만 쓴다.
+
+옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 **지우지 않는다** — 이미 받아 쓰는 사람이 깨진다.
+새 이름의 첫 판은 `suseong41/sha:0.2.0` 이고, GitHub 은 옛 저장소 주소를 새 주소로 리다이렉트해 준다.
 
 ---
 

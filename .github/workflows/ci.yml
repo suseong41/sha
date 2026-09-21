@@ -37,11 +37,11 @@ jobs:
         run: go build .
 
       - name: 스모크 - 정상 페이지에 HIGH 발견 없음
-        run: ./suseong-html-analyzer -min high testdata/jnu_main.html https://www.jnu.ac.kr/
+        run: ./sha -min high testdata/jnu_main.html https://www.jnu.ac.kr/
 
       - name: 스모크 - 악성 샘플에서 HIGH 발견됨
         run: |
-          if ./suseong-html-analyzer -min high testdata/malicious_sample.html https://bank.example.com/; then
+          if ./sha -min high testdata/malicious_sample.html https://bank.example.com/; then
             echo "악성 샘플에서 아무것도 못 찾음"
             exit 1
           fi

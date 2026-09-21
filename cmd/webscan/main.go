@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/suseong41/suseong-html-analyzer/fetcher"
-	"github.com/suseong41/suseong-html-analyzer/version"
-	"github.com/suseong41/suseong-html-analyzer/web"
+	"github.com/suseong41/sha/fetcher"
+	"github.com/suseong41/sha/version"
+	"github.com/suseong41/sha/web"
 )
 
 func main() {

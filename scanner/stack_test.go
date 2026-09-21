@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // 입력을 끝까지 읽은 뒤 남은 열린 요소들은 "div>span" 형태로.

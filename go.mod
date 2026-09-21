@@ -1,3 +1,3 @@
-module github.com/suseong41/suseong-html-analyzer
+module github.com/suseong41/sha
 
 go 1.27.1

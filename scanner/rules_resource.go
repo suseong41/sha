@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // isSubresource(): 브라우저가 자동으로 가져오는 리소스인 속성인지 확인.

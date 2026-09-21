@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/suseong41/suseong-html-analyzer/fetcher"
+	"github.com/suseong41/sha/fetcher"
 )
 
 // holdFetch: 슬롯을 잡은 채로 놓아줄 때까지 기다리는 가짜 수집기.

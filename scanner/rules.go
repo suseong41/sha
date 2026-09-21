@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // normalizeURL() 브라우저가 실제로 보는 URL 값을 만든다.

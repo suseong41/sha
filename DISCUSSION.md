@@ -1,7 +1,8 @@
 # SHA — 설계 논의 기록
 
 > **SHA**(Suseong-Html-Analyzer) — HTML을 파싱해 **XSS 취약점**과 **링크·리소스**를 찾아내는 보안 스캐너 (Go)
-> 부르는 이름만 SHA 이고, 모듈 경로·저장소·이미지 같은 **식별자는 `suseong-html-analyzer` 그대로**다.
+> 식별자는 전부 소문자 `sha` 다 — 모듈 `github.com/suseong41/sha` · 이미지 `suseong41/sha`.
+> 2026-09-21 에 옛 이름 `suseong-html-analyzer` 에서 바꿨다 (§12.51).
 
 ---
 
@@ -2446,11 +2447,44 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build …
 
 | 확인 | 결과 |
 |---|---|
-| `docker pull …:0.1.0` | amd64·arm64 둘 다 · 3.4MB(압축) |
+| `docker pull suseong41/suseong-html-analyzer:0.1.0` | amd64·arm64 둘 다 · 3.4MB(압축) |
 | 라벨 | version `0.1.0` · revision `107d6db` · source · licenses MIT |
 | 실행 | `/healthz` `{"status":"ok"}` · 실제 스캔 200 · 시작 로그 `version 0.1.0` · `max_scans 4` |
 
 태그와 상수 대조가 실제로 통과한 것이기도 하다 — 달랐으면 워크플로가 첫 단계에서 멈췄다.
+
+### 12.51 이름을 바꾸면 문장이 거짓이 된다 — 식별자 통일 (67교시)
+
+부르는 이름을 **SHA** 로 정한 뒤, 식별자도 맞추기로 했다(사용자 결정). 먼저 **어디까지 대문자가 되는지** 실제로 확인했다.
+
+```
+$ docker tag hello-world:latest suseong41/SHA:test
+repository name (suseong41/SHA) must be lowercase
+```
+
+| 자리 | 대문자 | |
+|---|---|---|
+| Docker 이미지 | **불가** | 위 오류 — 태그도 풀도 거부한다 |
+| Go 모듈 경로 | 가능하나 권장 안 함 | 프록시·캐시가 `SHA` 를 `!s!h!a` 로 이스케이프한다 |
+| GitHub 저장소 | 가능 | 표시는 그대로, 접근은 대소문자 무관 |
+
+**한 곳이 반드시 소문자라면 전부 소문자인 편이 어긋남이 0이다.** 그래서 식별자는 `sha`, 대문자 `SHA` 는 사람이 읽는 자리에만 뒀다.
+
+치환은 한 줄이다. `git grep -l` 은 **추적되는 파일만** 보므로 `.git` 도 33MB 짜리 코퍼스 HTML 도 건드리지 않는다.
+
+```sh
+git grep -l suseong-html-analyzer -- ':!old_c_files' | xargs sed -i '' 's|suseong-html-analyzer|sha|g'
+```
+
+31개 파일(Go 22 · 문서 6 · 워크플로 2 · 기타)이 바뀌었고 744 테스트가 그대로 통과했다. 실행 파일 이름은 따로 손대지 않아도 `sha` 가 된다 — `go build .` 는 **모듈 경로의 끝 조각**으로 이름을 짓는다.
+
+> **일괄 치환은 이력을 거짓으로 만든다.** 이것이 이번 교시의 함정이다.
+> "옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 지우지 않는다" 같은 문장까지 새 이름으로 바뀌어, **존재하지 않는 것을 가리키는 문장**이 된다.
+> 어제 배포한 `0.1.0` 은 옛 이름으로만 존재한다. 치환 뒤에는 **과거를 말하는 문장을 일일이 되돌려야** 한다 — README 의 이전 안내, §12.50 의 배포 기록, §14 의 상태 표, CLAUDE.md 의 교시 요약 다섯 군데가 그랬다.
+
+깨지지 않게 한 것 둘. **옛 이미지는 지우지 않는다** — 이미 받아 쓰는 사람이 깨진다. **GitHub 은 옛 저장소 주소를 리다이렉트**하므로 옛 링크도 산다. 다만 Go 모듈 경로는 `go.mod` 이 선언하는 값이 곧 정체라, 옛 경로로 import 한 코드는 새 경로로 고쳐야 한다(우리는 라이브러리가 아니라 도구라 영향이 없다).
+
+저장소 밖 **측정 도구**(스크래치패드 `ctas/*`)도 `replace` 로 저장소를 가리키고 있었다. 같이 고쳐 다시 빌드했다 — 안 고치면 다음 측정 때 "왜 안 되지"로 시간을 버린다.
 
 ---
 
@@ -2504,7 +2538,7 @@ XSS 취약점이 아니라 **CSP 도입을 가로막는 요소**다. 심각도�
 | ~~명세 문서~~ | **완료** | `docs/INTEGRATION.md` — compose 로 끝에서 끝까지 검증 (§12.31) |
 | ~~SHA 요청 로그~~ | **완료** | JSON 한 줄 · 원인 종류 · scheme·host 만 — 오류 문자열·쿼리는 남기지 않는다 (§12.32) |
 | ~~CI `govulncheck`~~ | **완료** | 푸시·PR·주간 schedule. 새 패치가 나오면 빨간불로 go.mod 을 올리라고 알린다 (§12.33) |
-| Docker Hub 공개 | **완료 (2026-09-20 · v0.1.0)** | 66교시 — MIT LICENSE · NOTICE · CI 이미지 빌드 · `v*` 태그 릴리스 워크플로(멀티아키 크로스 컴파일, 태그 vs `version.V` 대조). `suseong41/suseong-html-analyzer:0.1.0` · `:latest`, amd64·arm64, 3.4MB (§12.50) |
+| Docker Hub 공개 | **완료 (2026-09-20 · v0.1.0)** | 66교시 — MIT LICENSE · NOTICE · CI 이미지 빌드 · `v*` 태그 릴리스 워크플로(멀티아키 크로스 컴파일, 태그 vs `version.V` 대조). 첫 배포는 `suseong41/suseong-html-analyzer:0.1.0`(당시 이름), 이름을 바꾼 뒤로는 `suseong41/sha` (§12.50 · §12.51) |
 | 한글 IDN 피싱 | 한계 | 의미로 속이는 것이라 도메인 문자열로는 못 잡는다 (§12.23) |
 | 변수를 거친 `eval` | 한계 | `var d=atob(x); eval(d)` — 변수 추적이 필요하다 (§12.21) |
 | `formaction` 덮어쓰기 | **완료** | 폼 규칙 5종 모두 반영 (§12.10) |

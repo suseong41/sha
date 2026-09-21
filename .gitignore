@@ -16,7 +16,7 @@ Makefile
 **/.idea/*
 
 # Go
-/suseong-html-analyzer
+/sha
 /scan
 *.test
 /coverage.out

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // 눈으로 구별할 수 없는 문자 체계 혼합 구분. ex) 라틴 a 키릴 a

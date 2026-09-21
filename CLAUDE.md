@@ -52,7 +52,8 @@ scratchpad/<이름>/ 에 tokenizer/ scanner/ go.mod testdata/ 를 복사
 ## 2. 프로젝트 개요
 
 HTML을 파싱해 XSS·피싱·리소스 위험을 찾는 **정적 보안 스캐너** (Go, 외부 의존성 0).
-부르는 이름은 **SHA**(Suseong-Html-Analyzer). **식별자는 바꾸지 않았다** — 모듈 경로·저장소·이미지·실행 파일은 전부 `suseong-html-analyzer` 다(66교시 뒤 결정).
+이름은 **SHA**(Suseong-Html-Analyzer). 식별자는 전부 소문자 `sha` — 모듈 `github.com/suseong41/sha` · 저장소 `suseong41/sha` · 이미지 `suseong41/sha` · 실행 파일 `sha`.
+**2026-09-21 에 옛 이름(`suseong-html-analyzer`)에서 바꿨다**(67교시). 옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 지우지 않는다 — 받아 쓰는 사람이 깨진다.
 
 ```
 main.go        CLI — 파일 읽기 · 스캔 호출 · 출력만
@@ -180,9 +181,9 @@ go test ./scanner -run 'Corpus|Malicious' -v
 # 두 방향을 같이 걸어야 한다. 한쪽만이면 "아무것도 안 찾는 스캐너"가 만점을 받는다.
 
 # 눈으로 볼 때
-./suseong-html-analyzer testdata/jnu_main.html https://www.jnu.ac.kr/        # 4건
-./suseong-html-analyzer testdata/malicious_sample.html https://bank.example.com/  # 5건 (HIGH 3)
-./suseong-html-analyzer testdata/spa_shell.html https://app.example.com/     # 0건 + 참고 1
+./sha testdata/jnu_main.html https://www.jnu.ac.kr/        # 4건
+./sha testdata/malicious_sample.html https://bank.example.com/  # 5건 (HIGH 3)
+./sha testdata/spa_shell.html https://app.example.com/     # 0건 + 참고 1
 ```
 
 ---
@@ -207,6 +208,7 @@ go test ./scanner -run 'Corpus|Malicious' -v
 | **진단 테스트가 아무것도 안 찍는다** | `go test ./패키지` 는 **통과한 테스트의 표준 출력을 숨긴다** — `-v` 를 붙인다. 62교시에 이걸 모르고 "글에는 비문자가 없다"고 결론냈다가 철회했다(실제로는 서식 문자가 있었다) |
 | `sed -n '/시작/,/^}/p'` 결과가 잘림 | `}{` 같은 줄이 범위 끝으로 오인된다. 읽지 말고 **실행해서 값을 찍어라** |
 | 검증 도구가 "문제 없음"이라는데 실제로는 돌지도 않음 | `도구 | head && echo 통과` — **파이프의 종료 코드는 마지막 명령(head) 것**이라 앞의 실패가 가려진다. zsh 에는 bash 의 `PIPESTATUS` 도 없다(빈칸). 출력을 파일로 받고 `$?` 를 직접 본다. **대조군(일부러 틀린 입력)** 이 실패하는지 같이 본다 — actionlint 가 git 저장소가 아니라 시작도 못 했는데 통과로 보였다(2026-09-16) |
+| **이름을 일괄 치환한 뒤 문서가 거짓말을 한다** | 치환은 **과거를 말하는 문장**도 바꾼다. 67교시: "옛 이미지 `…suseong-html-analyzer:0.1.0`" 이 새 이름으로 바뀌어 **없는 것을 가리키는 문장**이 됐다. 치환 뒤에는 `git diff` 에서 **이력·이전 안내**를 따로 훑는다 |
 | **거르는 설정을 넣었는데 그대로 들어간다** | **허용 목록은 맨 앞에 `*` 가 있어야 한다.** `!` 는 "앞서 제외한 것을 되살린다"라서 제외 줄이 없으면 아무것도 안 걸러진다. 2026-09-20 배포 준비 점검에서 발견 — 커밋된 `.dockerignore` 에 `*` 가 없어 `testdata/live` 의 받은 페이지가 빌드 컨텍스트로 갔다(§12.30 정정). **잰 파일과 커밋된 파일이 다를 수 있다**: 거르는 설정은 크기가 아니라 **무엇이 들어갔는지 목록**으로 확인한다(`COPY . /ctx` 뒤 `find`) |
 | **스크래치패드 명령이 사용자 저장소를 바꿈** | `cd 스크래치패드 && …` 가 실패하면 **다음 줄부터는 이전 작업 디렉터리에서** 돈다. 스크래치패드는 세션 중에 비워질 수 있다(2026-09-15 실제로 `perl -pi` 가 `main.go` 를 고침 — `git diff` 로 한 줄뿐임을 확인하고 되돌림). 검증 스크립트는 **`set -e` + 절대 경로 + `mkdir -p` 먼저** |
 
@@ -345,7 +347,7 @@ file:///etc/passwd          로컬 파일
 | ↳ **데이터셋 도착 (2026-09-19)** | `/Users/suseong/test/dataset/` — zip 8개 4.7GB(**풀지 않는다** — 압축 파일에서 메모리로 읽어 스캔). 분류: backdoor 132 · downloader 1,043 · exploit.kit 1,600 · miner 10,000 · ransomware 323 · trojan 10,000 · virus 841 · worm 697 표본. **원본 HTML 이 아니라 머신러닝 특징값**: 표본마다 `<sha256>.json` + 바이트 그림 `.bmp` 2개. JSON 의 `strings` 가 **줄 단위로 자른 원본 문자열**(글자 합이 원본의 95~98%) → `strings.Join(s, "\n")` 으로 되살린다. **한계**: 비ASCII 가 전부 빠짐(제로폭·유니코드 도메인 규칙은 이 데이터로 못 잰다) · 빈 줄 빠짐 · **페이지 URL 모름**(출처 규칙은 설계대로 물러남, 가짜 URL 은 부풀리므로 안 씀). 출처는 VirusShare·clean-mx, `av_detection` 에 백신 진단명. 측정 도구는 스크래치패드 `ctas/tool` (저장소 밖) |
 | ↳ **첫 측정 (2026-09-19, 24,636표본 · 50초)** | 발견 있음 89.8% 이지만 대부분 hardening·supply-chain(mixed-content·sri-missing·inline-handler). **HIGH 24.8% 는 착시**: `cleartext-credentials` 6,109건 중 miner 의 5,684건이 **한 사이트**(saltworld.net 포럼, 채굴 스크립트가 심긴 페이지를 페이지마다 수집 — **중복 제거 없이 비율을 내면 안 된다**). 게다가 이 HIGH 는 악성코드가 아니라 **피해 사이트의 http 로그인 폼** → §3 "HIGH 는 악성 행위에만" 과 충돌(결정 필요). **`webshell-signature` 0/132**: backdoor 표본에 시그니처가 문서 어디든 75회(c99shell 40 · r57shell 31 · byroenet 4) 있지만 `<script>` 안에는 **0회** — 규칙이 구조적으로 못 보는 자리를 보고 있었다(웹셸은 서버가 그린 관리 화면). 진짜로 보이는 HIGH: `form-action-ip` 9(`http://69.31.86.221/se.php`) · `data-uri-document` 4. 한 번도 안 뜬 HIGH: 출처 규칙(URL 없음, 설계대로) · mixed-script-host(비ASCII 빠짐) · exfil-channel·meta-refresh-scheme·phishing-interstitial(피싱이 아니라 악성코드 데이터). **재현율 구멍**: 발견 0건 비율 exploit.kit 49% · downloader 43% · worm 56% |
 | ↳ **▶ 다음에 할 일 (2026-09-20 · A·B 완료, C 규칙 둘 완료)** | ~~**A** `cleartext-credentials` HIGH → MEDIUM~~ — **57교시 완료**(사용자 확인 후). HIGH 표본 6,120 → **12**(form-action-ip 9 · data-uri-document 3), 발견 수 22,112 그대로 (§12.38). ~~**B** `webshell-signature` 가 본문도 보게~~ — **58교시 완료.** 보이는 이름 ∧ 파일 업로드 칸. backdoor 0 → **42**/132 · 웹셸을 다루는 정상 글 16쪽 오탐 7 → **0** (§12.39). **C** 재현율 구멍 — 기준을 "발견 0건"이 아니라 **"공격 분류 발견 0건"** 으로 잰다(16,476개 · 67%). **59교시에 첫 규칙 `local-system-object`** → 13,398(54%) (§12.40). **60교시에 이름 없는 웹셸**(안전 모드 ∧ `drwx` ∧ 업로드 칸, `webShellPage` 확장) → 13,382 (§12.41). **62교시 `encoded-shellcode`**(`%u` 가 글이 아닌 값으로 풀림) → 13,240 (§12.43). **ransomware 323 은 분석 후 만들지 않음**(경찰 사칭 잠금 사기 키트 하나 — 보류 표의 browlock 줄, §12.44). **trojan 의 `Loading...` 66 도 분석 후 만들지 않음**(넓히면 오탐 원인이던 모양, 좁히면 키트 하나 — 보류 표, §12.45). 채굴 4,007 은 이름·호스트 목록 방식밖에 없어 하지 않는다 → **C 마무리**. 중복은 대표 호스트로 묶어 함께 보고한다. ~~**D** 스크립트 규칙이 데이터 블록까지 봄~~ — **61교시 완료.** 정상 텔레그램 봇 라이브러리의 GitHub 코드 화면 2쪽이 `exfil-channel` HIGH → 0. 판정을 `ctx.scriptCode` + `scriptText()` 로 옮겨 세 규칙이 공유, 데이터셋·음성·코퍼스는 전후 같음 (§12.42). |
-| ↳ **측정 도구 다시 만드는 법** | 스크래치패드는 사라질 수 있다. Go 로 `archive/zip` 을 열어 `.json` 만 읽고, `{"strings":[…]}` 를 `strings.Join(…, "\n")` 으로 이어 `scanner.ScanURL(html, "")` → 분류(zip 이름 `html.<분류>_1.zip`)별로 표본 수·발견 있음·HIGH 있음·규칙별 발동 표본 수를 센다. 저장소 밖 모듈에서 `replace github.com/suseong41/suseong-html-analyzer => <저장소 복사본>` 으로 붙인다. 되살린 HTML 은 **디스크에 쓰지 않는다.** 전체 24,636개가 약 50초. 증거 문자열은 90자로 잘라 3개씩만 찍는다. **58교시 도구**(`ctas/ws`): 토크나이저만 써서 시그니처·표지가 나온 **자리**(title · textarea · text · raw · attr · comment)를 표본별로 세고 후보 조건을 나란히 비교한다(`ws dataset <dir>` · `ws perfile <html…>`). **음성 표본 16쪽**(웹셸을 다루는 정상 글)의 출처는 DISCUSSION §12.39 — 다시 받을 때도 **웹셸 배포 사이트는 받지 않는다**. **음성 표본 2**(`ctas/neg2`, 텔레그램 API 를 다루는 정상 GitHub 페이지 4쪽 — 출처는 §12.42). **62교시 도구**(`ctas/spray`): 실행 스크립트의 `%u` 구간을 재고, `spray escaped <html…>` 로 **실제 페이지의 보이는 글을 JS `escape()` 로 숨긴 합성 음성**을 만든다(300자 조각, 서로게이트 짝 유지). **ransomware 분석 도구**(`ctas/ransom`): 진단명(`av_detection`)·제목·iframe 모양·인라인 스크립트 앞부분 집계, `ransom behav zip …` · `ransom behav files 이름 …` 로 가두기 행동을 세고, `ransom drill 압축파일` 로 행동이 있는 페이지를 진단명·제목별로 묶는다 |
+| ↳ **측정 도구 다시 만드는 법** | 스크래치패드는 사라질 수 있다. Go 로 `archive/zip` 을 열어 `.json` 만 읽고, `{"strings":[…]}` 를 `strings.Join(…, "\n")` 으로 이어 `scanner.ScanURL(html, "")` → 분류(zip 이름 `html.<분류>_1.zip`)별로 표본 수·발견 있음·HIGH 있음·규칙별 발동 표본 수를 센다. 저장소 밖 모듈에서 `replace github.com/suseong41/sha => <저장소 복사본>` 으로 붙인다. 되살린 HTML 은 **디스크에 쓰지 않는다.** 전체 24,636개가 약 50초. 증거 문자열은 90자로 잘라 3개씩만 찍는다. **58교시 도구**(`ctas/ws`): 토크나이저만 써서 시그니처·표지가 나온 **자리**(title · textarea · text · raw · attr · comment)를 표본별로 세고 후보 조건을 나란히 비교한다(`ws dataset <dir>` · `ws perfile <html…>`). **음성 표본 16쪽**(웹셸을 다루는 정상 글)의 출처는 DISCUSSION §12.39 — 다시 받을 때도 **웹셸 배포 사이트는 받지 않는다**. **음성 표본 2**(`ctas/neg2`, 텔레그램 API 를 다루는 정상 GitHub 페이지 4쪽 — 출처는 §12.42). **62교시 도구**(`ctas/spray`): 실행 스크립트의 `%u` 구간을 재고, `spray escaped <html…>` 로 **실제 페이지의 보이는 글을 JS `escape()` 로 숨긴 합성 음성**을 만든다(300자 조각, 서로게이트 짝 유지). **ransomware 분석 도구**(`ctas/ransom`): 진단명(`av_detection`)·제목·iframe 모양·인라인 스크립트 앞부분 집계, `ransom behav zip …` · `ransom behav files 이름 …` 로 가두기 행동을 세고, `ransom drill 압축파일` 로 행동이 있는 페이지를 진단명·제목별로 묶는다 |
 | **가려진 리다이렉트(`Loading...` 키트)** | **2026-09-20 분석 후 만들지 않음(사용자 결정 — "오탐 원인이니 기록만 하고 넘긴다").** trojan 의 `Loading...` 66건 = 장치 지문 25가지를 XOR 해시해 `&utm_content=` 에 붙여 16진수로 숨긴 주소로 보내는 광고 트래픽 관문(`clickverify=1`), 한 키트. 후보 셋: 문자열 숨김(≥16 연속) 737개·164계열이지만 MEDIUM(정상 이메일 가리기와 같은 수법) · 숨긴 주소 ∧ 이동(같은 스크립트) 140개·13계열이지만 **"같은 스크립트에 있을 뿐"은 `obfuscated-eval` 에서 이미 버린 모양** · 같은 식으로 좁히면 66개·1계열(시그니처). 정상 71·음성 20 은 셋 다 0. **다시 볼 조건**: JS 를 파싱해 값의 흐름을 따라갈 수 있게 되면 (§12.45) |
 | **브라우저 잠금 사기(browlock)** | **2026-09-20 분석 후 만들지 않음(사용자 결정 — "핵심은 HIGH").** ransomware 323개 = 경찰 사칭 잠금 사기 **키트 하나**(6개 언어, 인라인 스크립트 95%+ 동일, 호스트 37곳). 가두기 넷(나가기 · 오른쪽 클릭 · 선택 · 드래그) 동시 = 323 · 그 밖 악성 0 · 정상 0 이지만 한 키트의 시그니처이고, 온라인 시험 같은 정상 모양을 못 쟀고, 만들어도 MEDIUM 이다. 같은 주소 iframe 75개는 정상(1)과 키트(75) 사이를 다른 악성(2~20)이 채워 경계 근거가 없다. **다시 볼 조건**: 다른 잠금·기술지원 사기 계열 1개 이상 + 복사 방지·나가기 경고가 있는 정상 페이지 음성 (§12.44) |
 | ~~foster parenting~~ | **2026-09-17 측정으로 닫음** — `x/net/html` 을 대조군으로 표 6경우를 재니 우리 판정이 전부 일치했다. foster parenting 은 노드의 **자리**를 바꾸지만 폼 소속은 **form 요소 포인터**로 정해지고, 우리 규칙은 자리가 아니라 소속을 묻는다. 회귀 3건을 `differential_test.go` 에 고정 |
@@ -638,7 +640,13 @@ CI 에 `image` 잡 추가 — 스모크는 **`/healthz` 만** 두드린다(바�
 멀티아키는 **에뮬레이션이 아니라 크로스 컴파일**: `--platform=$BUILDPLATFORM` + `GOOS/GOARCH=$TARGETOS/$TARGETARCH` → amd64·arm64 합쳐 **6초**(QEMU 면 분 단위).
 `release.yml` 순서에 뜻이 있다: ① 태그 vs `version.V` 대조(다르면 아무것도 하기 전에 멈춤) → ② 테스트(**푸시한 이미지는 되돌릴 수 없다**) → ③ 빌드·푸시(라벨 버전은 태그에서).
 워크플로 파일은 사용자 요청으로 **내가 직접 넣었다**(구현 코드는 여전히 사용자가 친다). 확인: YAML 파싱 + **대조군**(깨뜨린 YAML 은 실패) · 스모크를 로컬에서 그대로 실행 · 태그 대조 스크립트 로컬 시험(v0.1.0 통과 / v0.2.0 멈춤) · 단일·멀티아키 빌드 실측.
-**배포 완료 (2026-09-20)**: `v0.1.0` 태그 → Release 성공 → **`suseong41/suseong-html-analyzer:0.1.0`·`:latest`**(amd64·arm64, 3.4MB). 받아서 확인함 — 라벨·`/healthz`·실제 스캔·시작 로그 전부 정상.
+**배포 완료 (2026-09-20)**: `v0.1.0` 태그 → Release 성공 → **`suseong41/suseong-html-analyzer:0.1.0`·`:latest`**(당시 이름, amd64·arm64, 3.4MB). 받아서 확인함 — 라벨·`/healthz`·실제 스캔·시작 로그 전부 정상.
+
+**67교시** — 식별자를 `sha` 로 통일(사용자 결정). **이름을 바꾸면 문장이 거짓이 된다.**
+대문자 가능 여부를 먼저 쟀다: Docker 이미지 **불가**(`must be lowercase`) · Go 모듈은 가능하나 프록시가 `!s!h!a` 로 이스케이프 · GitHub 저장소는 가능. **한 곳이 반드시 소문자면 전부 소문자**가 어긋남 0 → 식별자 `sha`, 대문자 SHA 는 읽는 자리에만.
+치환은 `git grep -l ... | xargs sed` 한 줄(추적 파일만 — `.git`·코퍼스 HTML 안 건드림). 31개 파일, 744 테스트 그대로. 실행 파일 이름은 **모듈 경로 끝 조각**이라 저절로 `sha`.
+**함정**: 일괄 치환이 **이력 문장까지** 바꿔 "옛 이미지 …:0.1.0" 이 존재하지 않는 이름을 가리키게 됐다 — README·§12.50·§14·교시 요약 5곳을 되돌렸다. 스크래치패드 측정 도구의 `replace` 경로도 함께 고쳤다.
+옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 **지우지 않는다**. GitHub 은 옛 주소를 리다이렉트한다.
 
 1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60 · 62) · D(61) · ransomware 분석(만들지 않음). **C 마무리.** 다시 볼 조건들은 보류 표에(단일 체계 위조 · browlock). 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
 

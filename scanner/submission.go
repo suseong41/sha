@@ -3,7 +3,7 @@ package scanner
 import (
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // destination: 폼이 데이터를 보낼 수 있는 곳 하나.

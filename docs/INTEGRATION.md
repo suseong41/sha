@@ -1,6 +1,6 @@
 # SHA 연동 명세 — my_homepage
 
-이 문서는 SHA(suseong-html-analyzer)를 `my_homepage` 에 붙이는 작업자를 위한 명세다.
+이 문서는 SHA(sha)를 `my_homepage` 에 붙이는 작업자를 위한 명세다.
 여기 적힌 설정과 코드는 전부 my_homepage 와 같은 구성(nginx + api + sha)을 compose 로 띄워 실제로 돌려봤다.
 돌려본 방법과 **돌려보지 못한 것**은 [7. 검증 기록](#7-검증-기록)에 있다. 확인되지 않은 부분은 본문에도 그렇다고 표시했다.
 

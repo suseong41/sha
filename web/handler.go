@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/suseong41/suseong-html-analyzer/fetcher"
-	"github.com/suseong41/suseong-html-analyzer/scanner"
+	"github.com/suseong41/sha/fetcher"
+	"github.com/suseong41/sha/scanner"
 )
 
 const (

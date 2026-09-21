@@ -50,11 +50,11 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/suseong-html-analyzer:${{ steps.ver.outputs.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/suseong-html-analyzer:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/sha:${{ steps.ver.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/sha:latest
           # 버전은 저장소에 두 번 적지 않는다 — 태그에서 온 값을 라벨로 붙인다.
           labels: |
-            org.opencontainers.image.title=suseong-html-analyzer
+            org.opencontainers.image.title=sha
             org.opencontainers.image.description=HTML 정적 보안 스캐너 — JSON API
             org.opencontainers.image.version=${{ steps.ver.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}

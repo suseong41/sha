@@ -1,6 +1,6 @@
 package scanner
 
-import "github.com/suseong41/suseong-html-analyzer/tokenizer"
+import "github.com/suseong41/sha/tokenizer"
 
 // noscriptBreakoutRule: <nosciprt> 안에 숨긴 </noscript>로 빠져나오는 입력
 // 의도적 악성행위 일 수 있지만, 오타로도 가능하므로 MEDIUM.

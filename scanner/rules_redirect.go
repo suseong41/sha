@@ -3,7 +3,7 @@ package scanner
 import (
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // metaRefreshURL(): content="0; url=..."에서 URL 부분만 추출.

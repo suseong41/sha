@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf16"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // asciiLower(): ASCII만 소문자로 변환. 바이트 길이 보존

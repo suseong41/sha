@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // coverage는 스캔이 페이지를 얼마나 볼 수 있는지 추적.

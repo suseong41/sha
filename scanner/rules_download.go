@@ -3,7 +3,7 @@ package scanner
 import (
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // pathExt(): 경로 마지막 요소의 확장자 추출

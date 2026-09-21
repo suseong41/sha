@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/suseong41/suseong-html-analyzer/fetcher"
+	"github.com/suseong41/sha/fetcher"
 )
 
 // logged(): 로그를 버퍼에 JSON 으로 받는 핸들러.

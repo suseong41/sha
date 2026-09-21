@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/suseong41/suseong-html-analyzer/fetcher"
+	"github.com/suseong41/sha/fetcher"
 )
 
 // fakeFetch: 호출 여부를 기록하고 결과 반환

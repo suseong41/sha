@@ -8,8 +8,8 @@ import (
 	"os"
 	"sort"
 
-	"github.com/suseong41/suseong-html-analyzer/scanner"
-	"github.com/suseong41/suseong-html-analyzer/version"
+	"github.com/suseong41/sha/scanner"
+	"github.com/suseong41/sha/version"
 )
 
 // map: [키]값{}
@@ -25,7 +25,7 @@ func usage(fs *flag.FlagSet) {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("suseong-html-analyzer", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sha", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() { usage(fs) }
 	minName := fs.String("min", "info", "최소 심각도 (info|low|medium|high)")
@@ -40,7 +40,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if *showVersion {
-		fmt.Fprintf(stdout, "suseong-html-analyzer %s\n", version.V)
+		fmt.Fprintf(stdout, "sha %s\n", version.V)
 		return 0
 	}
 

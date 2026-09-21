@@ -3,7 +3,7 @@ package scanner
 import (
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // interstitial(): 지금 보고 있는 HTML이 대상 사이트가 아닌 중간 페이지인지 확인.

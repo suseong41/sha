@@ -1,6 +1,6 @@
 package scanner
 
-import "github.com/suseong41/suseong-html-analyzer/tokenizer"
+import "github.com/suseong41/sha/tokenizer"
 
 var voidElments = map[string]bool{
 	"area": true, "base": true, "br": true, "col": true, "embed": true,

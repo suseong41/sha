@@ -3,7 +3,7 @@ package scanner
 import (
 	"strings"
 
-	"github.com/suseong41/suseong-html-analyzer/tokenizer"
+	"github.com/suseong41/sha/tokenizer"
 )
 
 // formDestination(): 토큰이 폼 전송지를 선언하면 (속성 이름, 값) 반환.
