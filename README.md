@@ -3,26 +3,24 @@
 ![CI](https://github.com/suseong41/sha/actions/workflows/ci.yml/badge.svg)
 [![Docker Hub](https://img.shields.io/docker/v/suseong41/sha?label=docker%20hub&sort=semver)](https://hub.docker.com/r/suseong41/sha)
 
-**SHA**(Suseong-Html-Analyzer)는 HTML을 파싱해 **XSS·피싱·리소스 위험**을 찾아내는 정적 보안 스캐너다 (Go).
-외부 의존성 없이 표준 라이브러리만으로 동작한다. 아래에서는 **SHA** 로 부른다.
-
-정적 분석 도구다. "패턴이 존재한다"는 것을 보고할 뿐,
-공격자가 그 값을 실제로 제어하는지까지는 증명하지 않는다.
+**SHA**(Suseong-Html-Analyzer) - HTML을 파싱해 **XSS·피싱·리소스 위험**을 찾아내는 정적 보안 스캐너.
+정적 분석 도구로 "패턴이 존재한다"는 것을 보고할 뿐,
+공격자가 그 값을 실제로 제어하는지까지는 증명하지 않습니다.
 
 ---
 
 ### 기능
 
-WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 위에 규칙을 얹는다.
+WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 위에 규칙을 얹었습니다.
 
 * **파싱** — `<script>`/`<style>` 원시 텍스트, 문자 참조 디코딩, 주석·DOCTYPE,
-  script escaped state, 열린 요소 스택까지 브라우저와 동일하게 처리
+  script escaped state, 열린 요소 스택까지 브라우저와 동일하게 처리합니다
 * **구조 질의** — 열린 요소 스택으로 "지금 어느 `<form>` 안인가"를 브라우저와 같게 판정하고,
-  `form="id"` 로 멀리 떨어진 폼에 붙은 요소(form owner)까지 따라간다
+  `form="id"` 로 멀리 떨어진 폼에 붙은 요소(form owner)까지 따라갑니다
 * **출처 판정** — 등록 가능한 도메인(eTLD+1) 기준.
-  `static.example.com` 은 `www.example.com` 페이지에서 외부가 아니다
-* **집계** — 같은 원인은 한 줄로 묶는다.
-  CDN 한 곳에서 스크립트 30개를 불러도 조치는 하나이므로 `(30곳)` 으로 보고한다
+  `static.example.com` 은 `www.example.com` 페이지에서 외부가 아닙니다
+* **집계** — 같은 원인은 한 줄로 묶습니다.
+  CDN 한 곳에서 스크립트 30개를 불러도 조치는 하나이므로 `(30곳)` 으로 보고합니다
 * **탐지 규칙 25종** (심각도 · 분류별)
 
   | 심각도 | 분류 | 규칙 | 내용 |
@@ -53,29 +51,25 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | LOW | hardening | `inline-handler` | 인라인 이벤트 핸들러 (`onclick` 등) |
   | INFO | hardening | `target-blank-no-rel` | `target=_blank` 에 `rel=noopener` 없음 |
 
-  스크립트를 읽는 규칙(`exfil-channel` · `obfuscated-eval` · `local-system-object` · `encoded-shellcode`)은 **실행되는 코드 블록만** 본다.
-  `<script type="application/json">` 같은 데이터 블록은 실행되지 않는다 — GitHub 코드 화면이 파일 내용을 거기 담는다.
+  스크립트를 읽는 규칙(`exfil-channel` · `obfuscated-eval` · `local-system-object` · `encoded-shellcode`)은 **실행되는 코드 블록만** 봅니다.
+  `<script type="application/json">` 같은 데이터 블록은 실행되지 않습니다 — GitHub 코드 화면이 파일 내용을 거기 담습니다.
 
-* **HIGH 규칙의 실측 근거** — 악성 HTML 24,636개로 재면 HIGH 11종 중 **5종**이 실제 표본에서 확인된다.
+* **HIGH 규칙의 실측 근거** — 악성 HTML 24,636개로 재면 HIGH 11종 중 **5종**이 실제 표본에서 확인됩니다.
 
   | 확인됨 | 표본 | 아직 합성·주입 테스트뿐 | 왜 |
   |---|---:|---|---|
-  | `local-system-object` | 3,741 | `cross-origin-password-form` · `base-href-external` | 표본에 페이지 URL 이 없어 출처 규칙이 설계대로 물러난다 |
-  | `encoded-shellcode` | 154 | `mixed-script-host` | 표본에서 비ASCII 가 빠졌다 |
-  | `webshell-signature` | 59 | `exfil-channel` · `phishing-interstitial` · `meta-refresh-scheme` | 악성코드 표본이라 피싱 수법이 없다 — 0건 |
+  | `local-system-object` | 3,741 | `cross-origin-password-form` · `base-href-external` | 표본에 페이지 URL 이 없어 출처 규칙이 설계대로 물러납니다 |
+  | `encoded-shellcode` | 154 | `mixed-script-host` | 표본에서 비ASCII 가 빠졌습니다 |
+  | `webshell-signature` | 59 | `exfil-channel` · `phishing-interstitial` · `meta-refresh-scheme` | 악성코드 표본이라 피싱 수법이 없습니다 — 0건 |
   | `form-action-ip` | 9 | | |
   | `data-uri-document` | 3 | | |
 
-  합성 양성은 **규칙이 살아 있다**는 증거이지 그 공격을 실제로 만난다는 증거가 아니다.
-  규칙별 근거와 "무엇이 있어야 잴 수 있나"는 [DISCUSSION.md](DISCUSSION.md) §12.46 에 있다.
-
+  합성 양성은 **규칙이 살아 있다**는 증거이지, 그 공격을 실제로 만난다는 증거는 아닙니다.
 
 
 ---
 
 ### 사용 방법
-
-빌드하면 실행 파일 이름은 `sha` 다. 예전 이름으로 받아 두신 것이 있다면 [이름이 바뀌었다](#이름이-바뀌었다) 를 보라.
 
 ```sh
 go build .
@@ -83,7 +77,7 @@ go build .
 # 파일만 스캔
 ./sha page.html
 
-# URL을 주면 출처 기반 규칙(외부 도메인 폼·혼합 콘텐츠·SRI)이 켜진다
+# URL 을 주면 출처 기반 규칙(외부 도메인 폼·혼합 콘텐츠·SRI)이 켜집니다
 ./sha page.html https://example.com/
 
 # 최소 심각도로 거르기 · 통계 함께 보기
@@ -97,23 +91,23 @@ go build .
 ./sha -version
 ```
 
-출력은 `파일:줄:칸: 심각도 분류 [규칙] 근거` 형식이라 에디터에서 바로 점프할 수 있다.
+출력은 `파일:줄:칸: 심각도 분류 [규칙] 근거` 형식이라 에디터에서 바로 점프할 수 있습니다.
 
 ```
 page.html:6:1:  HIGH   exfiltration [exfil-channel]  action=https://api.telegram.org/bot123/sendMessage
 page.html:16:5: MEDIUM supply-chain [sri-missing]    c.example-cdn.com (3곳)
 ```
-발견과 별개로 **분석의 한계**를 stderr 에 보고한다.
-SPA 셸처럼 내용을 스크립트가 그리는 페이지가 그렇다.
-이것은 위험이 아니라 **우리가 보지 못한 것**이므로 종료 코드에 영향을 주지 않는다.
+발견과 별개로 **분석의 한계**를 stderr 에 보고합니다.
+SPA 셸처럼 내용을 스크립트가 그리는 페이지가 그렇습니다.
+이것은 위험이 아니라 **보지 못한 것**이므로 종료 코드에 영향을 주지 않습니다.
 
 **종료 코드** — `0` 발견 없음 · `1` 발견 있음 · `2` 사용법/입출력 오류.
-CI에서 `-min high` 로 걸어 실패시킬 수 있다.
+CI 에서 `-min high` 로 걸어 실패시킬 수 있습니다.
 
 #### Docker 로 URL 검사
 
-파일 대신 URL 을 주면 서버가 페이지를 가져와 스캔한다.
-SHA 이미지는 Docker Hub 에 있다 — `linux/amd64` · `linux/arm64`, 3.4MB(`scratch` 기반이라 셸도 패키지 관리자도 없다).
+파일 대신 URL 을 주면 서버가 그 페이지를 가져와 스캔합니다.
+이미지는 Docker Hub 에 있습니다 — `linux/amd64` · `linux/arm64`, 3.4MB 입니다
 
 ```sh
 docker run --rm -p 127.0.0.1:8080:8080 suseong41/sha:0.2.0
@@ -138,21 +132,19 @@ curl -s -H 'Content-Type: application/json' \
 }
 ```
 
-동시에 처리하는 스캔은 **기본 4개**다(`-max-scans`). 자리가 없으면 2초까지 기다렸다가 `503` 과 `Retry-After: 1` 을 돌려준다.
-5MB 페이지 하나가 약 50MB 를 쓰기 때문에 정한 값이다 — 메모리 256MB 로 제한한 컨테이너는 동시 10개에서 죽는다(측정: DISCUSSION §12.49).
+동시에 처리하는 스캔은 **기본 4개**입니다(`-max-scans`). 자리가 없으면 2초까지 기다렸다가 `503` 과 `Retry-After: 1` 을 돌려줍니다.
 
-서버가 살아 있는지는 `GET /healthz` 로 묻는다 — `{"status":"ok"}` 만 돌려주고, 밖으로 나가지 않으며 로그도 남기지 않는다.
-도는 버전은 시작 로그와 이미지 라벨에 있다(`/webscan -version` 은 없다 — 서버는 `-addr` 만 받는다).
+서버가 살아 있는지는 `GET /healthz` 로 묻습니다 — `{"status":"ok"}` 만 돌려주고, 밖으로 나가지 않으며 로그도 남기지 않습니다.
 
-(일부 필드와 발견을 줄였다.) 발견은 심각도 순으로 정렬되어 온다.
-내부망·사설 IP·루프백 주소는 가져오지 않는다 — `192.168.0.1` 같은 주소를 넣으면 `502` 가 돌아온다.
-다른 서비스에 붙이는 방법은 [docs/INTEGRATION.md](docs/INTEGRATION.md) 에 있다.
+발견은 심각도 순으로 정렬되어 옵니다.
+내부망·사설 IP·루프백 주소는 가져오지 않습니다 — `192.168.0.1` 같은 주소를 넣으면 `502` 가 돌아옵니다.
+다른 서비스에 붙이는 방법은 [docs/INTEGRATION.md](docs/INTEGRATION.md) 에 있습니다.
 
 ---
 
 ### 빌드 · 테스트
 
-* Go 1.27 이상, 외부 의존성 없음
+* Go 1.27 이상 · 외부 의존성 없음
 
 ```sh
 go test ./...          # 단위 테스트 + 퍼즈 씨앗
@@ -166,52 +158,31 @@ go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 1m
 
 ```sh
 ./tools/measure.sh      # tools/sites.txt 의 사이트를 받아 전수 스캔하고 집계
-./tools/measure.sh -f   # 모두 다시 받는다
+./tools/measure.sh -f   # 모두 다시 받습니다
 ```
 
-받은 페이지는 `testdata/live/` 에 두고 **커밋하지 않는다**.
-코퍼스가 *변하지 않는 회귀 기준*이라면, 이쪽은 *그날의 웹*을 보는 도구다.
+받은 페이지는 `testdata/live/` 에 두고 **커밋하지 않습니다**.
+코퍼스가 *변하지 않는 회귀 기준*이라면, 이쪽은 *그날의 웹*을 보는 도구입니다.
 
 #### 회귀 코퍼스
 
-`testdata/` 에 실제 웹에서 받은 **정상 페이지 21쪽**이 있다(`corpus/` 20쪽 + `jnu_main.html`, 한국어·영어·일본어·키릴·아랍·데바나가리).
-`scanner/corpus_test.go` 가 두 방향으로 단언한다.
+`testdata/` 에 실제 웹에서 받은 **정상 페이지 21쪽**이 있습니다(`corpus/` 20쪽 + `jnu_main.html`, 한국어·영어·일본어·키릴·아랍·데바나가리).
+`scanner/corpus_test.go` 가 두 방향으로 단언합니다.
 
 | | 정상 21쪽 | `malicious_sample.html` |
 |---|---|---|
 | 잡는 것 | **오탐** — 정상인데 HIGH | **미탐** — 악성인데 조용함 |
 | 단언 | `HIGH == 0` | `HIGH >= 3` |
 
-한쪽만으로는 속일 수 있다. 오탐 단언만 있으면 *아무것도 찾지 않는 스캐너*가,
-미탐 단언만 있으면 *전부 HIGH 로 찍는 스캐너*가 만점을 받는다.
+한쪽만으로는 속일 수 있습니다. 오탐 단언만 있으면 *아무것도 찾지 않는 스캐너*가,
+미탐 단언만 있으면 *전부 HIGH 로 찍는 스캐너*가 만점을 받습니다.
 
 ```sh
-go test ./scanner -run Corpus -v      # 페이지마다 서브테스트로 갈라진다
+go test ./scanner -run Corpus -v      # 페이지마다 서브테스트로 갈라집니다
 ```
-
----
-
-### 이름이 바뀌었다
-
-2026-09-21 에 식별자를 `suseong-html-analyzer` 에서 **`sha`** 로 바꿨다. 부르는 이름은 **SHA**(Suseong-Html-Analyzer)다.
-
-| | 옛 이름 | 지금 |
-|---|---|---|
-| 저장소 · 모듈 | `github.com/suseong41/suseong-html-analyzer` | `github.com/suseong41/sha` |
-| 이미지 | `suseong41/suseong-html-analyzer` | `suseong41/sha` |
-| 실행 파일 | `suseong-html-analyzer` | `sha` |
-
-전부 소문자다 — Docker 가 대문자 이미지 이름을 받지 않기 때문에, 한 곳이 소문자여야 한다면 **전부** 소문자인 편이 어긋남이 없다.
-대문자 `SHA` 는 사람이 읽는 자리에만 쓴다.
-
-옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 **지우지 않는다** — 이미 받아 쓰는 사람이 깨진다.
-새 이름의 첫 판은 `suseong41/sha:0.2.0` 이고, GitHub 은 옛 저장소 주소를 새 주소로 리다이렉트해 준다.
 
 ---
 
 ### 라이선스
 
-MIT — [LICENSE](LICENSE). 마음대로 쓰고 고치고 배포해도 된다. 저작권 고지만 남겨 달라.
-
-`old_c_files/ExternalLib/gTest/` 만 예외다 — Google 의 GoogleTest(BSD 3-Clause)이고,
-Go 로 옮기기 전 C++ 원본을 시험하던 코드라 빌드에도 이미지에도 들어가지 않는다. [NOTICE](NOTICE) 참고.
+MIT — [LICENSE](LICENSE) 를 보십시오.

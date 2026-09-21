@@ -64,11 +64,11 @@ web/           JSON API — POST /api/scan(동시 4개 상한) · GET /healthz (
 cmd/webscan/   API 서버 진입점 — http.Server 타임아웃 · -addr
 version/       V 하나 — CLI(-version) · 서버 시작 로그 · 이미지 라벨이 같은 값을 말한다 (63교시)
 Dockerfile     멀티 스테이지 → scratch · TARGETARCH 로 크로스 컴파일 · .dockerignore 는 허용 목록(첫 줄 *)
-LICENSE·NOTICE MIT(suseong41) · gTest 는 BSD-3-Clause 라 따로 고지 (66교시)
+LICENSE        MIT(suseong41). 68교시에 gTest(BSD-3) 63개를 지워 제3자 코드가 없어졌고 NOTICE 도 없앴다
 .github/workflows/  ci.yml(gofmt·vet·test·빌드·스모크·govulncheck·퍼징·**이미지 빌드**) · release.yml(v* 태그 → Docker Hub)
 docs/INTEGRATION.md  my_homepage 연동 명세 — API 계약 · 그리는 쪽 보안 규칙 · compose · nginx · Cloudflare · 검증 기록
 tools/         measure.sh — 실전 측정 (받은 페이지는 testdata/live/, 커밋 안 함)
-old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음)
+old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음). gTest 를 지워 **지금은 빌드되지 않는다** — 읽기용이다
 testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · spa_shell.html
                corpus/  실제 웹에서 curl 로 받은 정상 페이지 20쪽 (+jnu_main = 회귀 기준 21쪽)
 ```
@@ -647,6 +647,12 @@ CI 에 `image` 잡 추가 — 스모크는 **`/healthz` 만** 두드린다(바�
 치환은 `git grep -l ... | xargs sed` 한 줄(추적 파일만 — `.git`·코퍼스 HTML 안 건드림). 31개 파일, 744 테스트 그대로. 실행 파일 이름은 **모듈 경로 끝 조각**이라 저절로 `sha`.
 **함정**: 일괄 치환이 **이력 문장까지** 바꿔 "옛 이미지 …:0.1.0" 이 존재하지 않는 이름을 가리키게 됐다 — README·§12.50·§14·교시 요약 5곳을 되돌렸다. 스크래치패드 측정 도구의 `replace` 경로도 함께 고쳤다.
 옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 **지우지 않는다**. GitHub 은 옛 주소를 리다이렉트한다.
+
+**68교시** — my_homepage 연동 · README 정리. **계약을 남의 페이지에서 지키는 일.**
+바꾼 것 셋(`docker-compose.yml` · `nginx/nginx.conf` · `html/index.html`), **212줄 추가 · 삭제 0**. 서비스는 `build:` 가 아니라 **`image: suseong41/sha:0.2.0`**(버전 고정) · CSP 는 **Report-Only**(페이지가 아직 인라인 스크립트·onclick 을 씀) · 결과는 **`textContent` 만**.
+검증은 스택 통째로(nginx + busybox api + 배포 이미지, 자체 서명 인증서). **대조군 둘이 핵심**: 헤더를 믿는 설정에서 IP 8개가 전부 통과해야 앞의 429 가 "위조 무시"의 증거가 되고, `innerHTML` 대조군이 요소 2개를 만들어야 우리 쪽 0개가 뜻을 갖는다. 응답 6종 화면·버튼 잠김 해제까지 확인.
+**브라우저로는 못 봤다**(jsdom 은 요소 생성까지만). 기존 페이지의 `innerHTML`·`marked.parse`·`onclick` 은 그대로 — CSP 를 켜려면 그것부터.
+곁가지: README 를 **존댓말로 통일**하고 내부 문서 참조(§번호)를 걷어냈다(`docs/INTEGRATION.md` 링크는 남김). **gTest 63개 + NOTICE 삭제**(사용자 결정) — 이력에는 남는다.
 
 1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60 · 62) · D(61) · ransomware 분석(만들지 않음). **C 마무리.** 다시 볼 조건들은 보류 표에(단일 체계 위조 · browlock). 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
 

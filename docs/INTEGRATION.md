@@ -4,7 +4,7 @@
 여기 적힌 설정과 코드는 전부 my_homepage 와 같은 구성(nginx + api + sha)을 compose 로 띄워 실제로 돌려봤다.
 돌려본 방법과 **돌려보지 못한 것**은 [7. 검증 기록](#7-검증-기록)에 있다. 확인되지 않은 부분은 본문에도 그렇다고 표시했다.
 
-작성 2026-09-16 · 갱신 2026-09-21(`GET /healthz` 추가, SHA 0.1.0) · SHA 는 Go 1.27 · 이미지 `scratch` 기반
+작성 2026-09-16 · 갱신 2026-09-21(이미지 받아 쓰기 · `GET /healthz` · 동시 스캔 상한, SHA 0.2.0) · SHA 는 Go 1.27 · 이미지 `scratch` 기반
 
 ---
 
@@ -202,11 +202,11 @@ SHA 연동과 직접 관계는 없지만, 같은 원리로 문제가 되는 곳�
 
 ## 3. compose — sha 서비스
 
-`docker-compose.yml` 의 `services:` 아래에 추가한다. SHA 저장소는 `tools/SHA` 에 둔다(서브모듈이든 복사든).
+`docker-compose.yml` 의 `services:` 아래에 추가한다. **저장소를 복사해 빌드할 필요가 없다** — Docker Hub 의 이미지를 받아 쓴다.
 
 ```yaml
   sha:
-    build: ./tools/SHA
+    image: suseong41/sha:0.2.0
     expose:
       - "8080"
     read_only: true
@@ -226,7 +226,8 @@ nginx 의 `depends_on` 에 `sha` 를 추가한다.
 | `expose` (**`ports` 가 아니다**) | 같은 compose 네트워크의 nginx 만 닿는다. `ports` 는 호스트에 연다 |
 | `read_only` | SHA 는 디스크에 쓰지 않는다. 컨테이너 안에서 파일을 만들 수 없게 한다 |
 | `cap_drop: ALL` · `no-new-privileges` | 커널 권한을 전부 뺀다. SHA 이미지는 이미 비루트(UID 65532)로 돈다 |
-| `mem_limit` · `pids_limit` | **2026-09-21 에 실제로 재서 고른 값이다**(SHA 0.1.0). 5MB 페이지 하나가 약 50MB 를 쓴다 — `mem_limit: 256m` 에서 동시 9 까지는 살지만 **10 부터 컨테이너가 OOM 으로 죽고 그 순간의 요청이 전부 실패**한다. SHA 0.1.0 부터 동시 스캔을 **기본 4개**로 제한하므로(넘치면 2초 기다렸다 503) 이 한도 안에 머문다 — 동시 256 요청을 부어도 메모리 112MB, OOM 없음. 상한을 올리려면 `-max-scans` 와 `mem_limit` 을 **함께** 올린다: 대략 `mem_limit ≈ max-scans × 50MB + 60MB` |
+| `image` 에 **버전을 고정** | `latest` 로 두면 재시작할 때마다 다른 것이 돌 수 있다. 올릴 때는 이 줄을 고치고 `docker compose pull sha && docker compose up -d sha` |
+| `mem_limit` · `pids_limit` | **2026-09-21 에 실제로 재서 고른 값이다**(SHA 0.2.0). 5MB 페이지 하나가 약 50MB 를 쓴다 — `mem_limit: 256m` 에서 동시 9 까지는 살지만 **10 부터 컨테이너가 OOM 으로 죽고 그 순간의 요청이 전부 실패**한다. SHA 는 동시 스캔을 **기본 4개**로 제한하므로(넘치면 2초 기다렸다 503) 이 한도 안에 머문다 — 동시 256 요청을 부어도 메모리 112MB, OOM 없음. 상한을 올리려면 `-max-scans` 와 `mem_limit` 을 **함께** 올린다: 대략 `mem_limit ≈ max-scans × 50MB + 60MB` |
 
 이미지는 컨테이너 안에서 `0.0.0.0:8080` 으로 듣도록 만들어져 있다. 따로 설정할 필요 없다. 이 값을 `127.0.0.1` 로 바꾸면 로그에는 정상으로 뜬 것처럼 찍히지만 nginx 가 닿지 못한다.
 
@@ -365,13 +366,21 @@ Cloudflare 를 앞에 두는 이유 중 하나는 **원서버 IP 를 숨기는 �
 
 ## 6. 운영
 
-**이미지를 주기적으로 다시 빌드한다.** 두 가지가 빌드할 때만 갱신된다.
+**새 판이 나오면 올린다.** 두 가지가 이미지를 새로 만들 때만 갱신되기 때문이다.
 
 - **CA 인증서** — 실행 이미지에 들어 있는 인증서 묶음. 오래 두면 폐기된 인증 기관을 계속 믿는다.
-- **Go 보안 패치** — Dockerfile 이 `golang:1.27-alpine` 처럼 버전 줄로 적혀 있어 다시 빌드하면 최신 패치를 받는다.
+- **Go 보안 패치** — 이미지는 `golang:1.27-alpine` 에서 빌드되므로 새로 만들 때 최신 패치를 받는다.
+
+`docker-compose.yml` 의 `image:` 줄에서 버전을 올린 뒤:
 
 ```bash
-docker compose build --pull sha && docker compose up -d sha
+docker compose pull sha && docker compose up -d sha
+```
+
+어떤 판이 도는지는 시작 로그(`{"msg":"listening","version":"0.2.0"}`)와 이미지 라벨로 확인한다.
+
+```bash
+docker image inspect suseong41/sha:0.2.0 --format '{{index .Config.Labels "org.opencontainers.image.version"}}'
 ```
 
 Go 버전 줄 자체(1.27)는 지원 기간이 끝나기 전에 SHA 저장소에서 올린다. SHA 저장소의 CI 가 푸시할 때와 매주 한 번 아래 검사를 돌리고, 알려진 취약점이 있으면 실패한다.
@@ -413,7 +422,9 @@ curl -s http://127.0.0.1:8080/healthz                            # 포트를 연
 
 ## 7. 검증 기록
 
-`my_homepage` 와 같은 구성을 스크래치 디렉터리에서 compose 로 띄워 확인했다. SHA 는 실제 저장소를 그대로 빌드했고, nginx 에는 테스트용 자체 서명 인증서를, api 자리에는 busybox 웹서버를 두었다. 외부로 나간 요청은 `example.com` 뿐이다.
+`my_homepage` 와 같은 구성을 스크래치 디렉터리에서 compose 로 띄워 확인했다. nginx 에는 테스트용 자체 서명 인증서를, api 자리에는 busybox 웹서버를 두었다. 외부로 나간 요청은 `example.com` 뿐이다.
+
+**2026-09-21 재검증** — 이번에는 저장소를 빌드하지 않고 **배포된 이미지 `suseong41/sha:0.2.0` 을 받아** 같은 스택을 띄웠고, 이 문서 2절의 코드를 실제로 `my_homepage` 의 `index.html` 에 붙인 상태로 쟀다. 아래 표의 굵은 줄이 그날 것이다.
 
 | 확인한 것 | 방법 | 결과 |
 |---|---|---|
@@ -428,9 +439,16 @@ curl -s http://127.0.0.1:8080/healthz                            # 포트를 연
 | 오류 응답 형식 | GET `/api/scan` | 405, `text/plain` |
 | 속도 제한이 방문자 단위인지 | 헤더를 믿는 설정, 같은 `CF-Connecting-IP` 8회 / 서로 다른 값 8회 | 4회 뒤 429 / 전부 통과 |
 | 헤더 위조가 무시되는지 | 헤더를 믿지 않는 설정, 서로 다른 값 8회 | 4회 뒤 429 (위조 무시) |
+| **배포 이미지로 같은 스택** | `image: suseong41/sha:0.2.0` 으로 compose up | **nginx·api·sha 정상, `/api/scan` 이 example.com 을 실제로 스캔** |
+| **`/api/scan` · `/api/posts` · `/` 라우팅** | 자체 서명 인증서로 `https://suseong.org:8443` | **각각 sha · api · 정적 파일에 도달** |
+| **보안 헤더(200·404)** | 응답 헤더 | **`nosniff` · `no-referrer` · CSP Report-Only 셋 다 붙음** |
+| **헤더 위조 무시** | 운영 설정에서 서로 다른 `CF-Connecting-IP` 8회 | **4회 뒤 429 — 위조해도 키가 갈라지지 않는다** |
+| **대조군(헤더를 믿는 설정)** | 서로 다른 IP 8회 / 같은 IP 8회 | **전부 통과 / 4회 뒤 429 — 방문자 단위 제한이 실제로 동작** |
 | 2절 `renderScan` | jsdom — `evidence`·`title`·`url`·`notes`·`code` 에 마크업 주입 | 위험 요소 0개, 증거는 글자로 보임 |
+| **2절 `renderScan` 재검증(2026-09-21)** | jsdom — 위 다섯에 더해 **`severity` 에도** 마크업 주입 | **위험 요소 0 · 이벤트 핸들러 0 · 위조된 등급은 `sev-info` 로 떨어짐** |
 | 2절 대조군(`innerHTML`) | 같은 데이터 | `<img onerror>`·`<svg onload>` 요소가 만들어짐 |
 | 2절 `scanUrl` | 띄운 스택에 실제 요청 (200 · 502 · 413 · 429 · 연결 실패) | 전부 기대한 결과 |
+| **응답 6종 화면(2026-09-21)** | 200 발견 있음 · 200 참고만 · 502 · **503** · 429(HTML) · 연결 실패 | **문구가 종류마다 다르고, 어느 경우에도 버튼 잠김이 풀린다** |
 | 현재 index.html | SHA CLI 로 스캔 | `sri-missing` 1건 (563행 marked) |
 | 요청 로그 (6절) | 실제 이미지를 `--read-only --cap-drop ALL` 로 띄워 `docker logs` 확인. 토큰이 든 URL·내부 주소·폼 형식 요청 | JSON 한 줄씩, `reason` 기록, `SECRET` 0건 |
 | SSRF — Docker 네트워크 안의 내부 서비스 | 같은 네트워크의 `api` 를 방어 켠/끈 이미지로 스캔 (SHA 저장소 53교시) | 켬 502 / 끔 200 |
