@@ -52,6 +52,7 @@ scratchpad/<이름>/ 에 tokenizer/ scanner/ go.mod testdata/ 를 복사
 ## 2. 프로젝트 개요
 
 HTML을 파싱해 XSS·피싱·리소스 위험을 찾는 **정적 보안 스캐너** (Go, 외부 의존성 0).
+부르는 이름은 **SHA**(Suseong-Html-Analyzer). **식별자는 바꾸지 않았다** — 모듈 경로·저장소·이미지·실행 파일은 전부 `suseong-html-analyzer` 다(66교시 뒤 결정).
 
 ```
 main.go        CLI — 파일 읽기 · 스캔 호출 · 출력만
@@ -637,7 +638,7 @@ CI 에 `image` 잡 추가 — 스모크는 **`/healthz` 만** 두드린다(바�
 멀티아키는 **에뮬레이션이 아니라 크로스 컴파일**: `--platform=$BUILDPLATFORM` + `GOOS/GOARCH=$TARGETOS/$TARGETARCH` → amd64·arm64 합쳐 **6초**(QEMU 면 분 단위).
 `release.yml` 순서에 뜻이 있다: ① 태그 vs `version.V` 대조(다르면 아무것도 하기 전에 멈춤) → ② 테스트(**푸시한 이미지는 되돌릴 수 없다**) → ③ 빌드·푸시(라벨 버전은 태그에서).
 워크플로 파일은 사용자 요청으로 **내가 직접 넣었다**(구현 코드는 여전히 사용자가 친다). 확인: YAML 파싱 + **대조군**(깨뜨린 YAML 은 실패) · 스모크를 로컬에서 그대로 실행 · 태그 대조 스크립트 로컬 시험(v0.1.0 통과 / v0.2.0 멈춤) · 단일·멀티아키 빌드 실측.
-**남은 것**: GitHub 시크릿 `DOCKERHUB_USERNAME`·`DOCKERHUB_TOKEN`(사용자) → 그다음 `v0.1.0` 태그.
+**배포 완료 (2026-09-20)**: `v0.1.0` 태그 → Release 성공 → **`suseong41/suseong-html-analyzer:0.1.0`·`:latest`**(amd64·arm64, 3.4MB). 받아서 확인함 — 라벨·`/healthz`·실제 스캔·시작 로그 전부 정상.
 
 1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60 · 62) · D(61) · ransomware 분석(만들지 않음). **C 마무리.** 다시 볼 조건들은 보류 표에(단일 체계 위조 · browlock). 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
 

@@ -1,9 +1,10 @@
-# suseong-html-analyzer
+# SHA — Suseong-Html-Analyzer
 
 ![CI](https://github.com/suseong41/suseong-html-analyzer/actions/workflows/ci.yml/badge.svg)
+[![Docker Hub](https://img.shields.io/docker/v/suseong41/suseong-html-analyzer?label=docker%20hub&sort=semver)](https://hub.docker.com/r/suseong41/suseong-html-analyzer)
 
-HTML을 파싱해 **XSS·피싱·리소스 위험**을 찾아내는 정적 보안 스캐너 (Go).
-외부 의존성 없이 표준 라이브러리만으로 동작한다.
+**SHA**(Suseong-Html-Analyzer)는 HTML을 파싱해 **XSS·피싱·리소스 위험**을 찾아내는 정적 보안 스캐너다 (Go).
+외부 의존성 없이 표준 라이브러리만으로 동작한다. 아래에서는 **SHA** 로 부른다.
 
 정적 분석 도구다. "패턴이 존재한다"는 것을 보고할 뿐,
 공격자가 그 값을 실제로 제어하는지까지는 증명하지 않는다.
@@ -74,6 +75,8 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
 
 ### 사용 방법
 
+실행 파일과 이미지 이름은 `suseong-html-analyzer` 그대로다 — SHA 는 부르는 이름이고, 식별자는 바꾸지 않았다.
+
 ```sh
 go build .
 
@@ -110,10 +113,13 @@ CI에서 `-min high` 로 걸어 실패시킬 수 있다.
 #### Docker 로 URL 검사
 
 파일 대신 URL 을 주면 서버가 페이지를 가져와 스캔한다.
+SHA 이미지는 Docker Hub 에 있다 — `linux/amd64` · `linux/arm64`, 3.4MB(`scratch` 기반이라 셸도 패키지 관리자도 없다).
 
 ```sh
-docker build -t sha .
-docker run --rm -p 127.0.0.1:8080:8080 sha
+docker run --rm -p 127.0.0.1:8080:8080 suseong41/suseong-html-analyzer:0.1.0
+
+# 직접 빌드하려면
+docker build -t sha . && docker run --rm -p 127.0.0.1:8080:8080 sha
 
 # 다른 터미널에서
 curl -s -H 'Content-Type: application/json' \

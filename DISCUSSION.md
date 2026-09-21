@@ -1,6 +1,7 @@
-# HTML Scanner — 설계 논의 기록
+# SHA — 설계 논의 기록
 
-> 목표: HTML을 파싱해 **XSS 취약점**과 **링크·리소스**를 찾아내는 보안 스캐너 (Go)
+> **SHA**(Suseong-Html-Analyzer) — HTML을 파싱해 **XSS 취약점**과 **링크·리소스**를 찾아내는 보안 스캐너 (Go)
+> 부르는 이름만 SHA 이고, 모듈 경로·저장소·이미지 같은 **식별자는 `suseong-html-analyzer` 그대로**다.
 
 ---
 
@@ -2441,6 +2442,16 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build …
 
 자격 증명은 저장소 시크릿(`DOCKERHUB_USERNAME`·`DOCKERHUB_TOKEN`)으로 받는다. 비밀번호가 아니라 **개인 액세스 토큰**을 쓰는 이유는, 새면 그 하나만 끊을 수 있기 때문이다.
 
+**첫 배포 (2026-09-20).** `v0.1.0` 태그를 밀자 Release 워크플로가 성공했고, Docker Hub 에 `0.1.0` 과 `latest` 가 올라갔다. **받는 사람 자리에서** 확인했다 — 로컬 빌드가 아니라 레지스트리에서 받아서.
+
+| 확인 | 결과 |
+|---|---|
+| `docker pull …:0.1.0` | amd64·arm64 둘 다 · 3.4MB(압축) |
+| 라벨 | version `0.1.0` · revision `107d6db` · source · licenses MIT |
+| 실행 | `/healthz` `{"status":"ok"}` · 실제 스캔 200 · 시작 로그 `version 0.1.0` · `max_scans 4` |
+
+태그와 상수 대조가 실제로 통과한 것이기도 하다 — 달랐으면 워크플로가 첫 단계에서 멈췄다.
+
 ---
 
 ## 13. 탐지 ≠ 취약점
@@ -2493,7 +2504,7 @@ XSS 취약점이 아니라 **CSP 도입을 가로막는 요소**다. 심각도�
 | ~~명세 문서~~ | **완료** | `docs/INTEGRATION.md` — compose 로 끝에서 끝까지 검증 (§12.31) |
 | ~~SHA 요청 로그~~ | **완료** | JSON 한 줄 · 원인 종류 · scheme·host 만 — 오류 문자열·쿼리는 남기지 않는다 (§12.32) |
 | ~~CI `govulncheck`~~ | **완료** | 푸시·PR·주간 schedule. 새 패치가 나오면 빨간불로 go.mod 을 올리라고 알린다 (§12.33) |
-| Docker Hub 공개 | **준비 완료** | 66교시 — MIT LICENSE · NOTICE · CI 이미지 빌드 · `v*` 태그 릴리스 워크플로(멀티아키 크로스 컴파일, 태그 vs `version.V` 대조). 남은 것은 저장소 시크릿 등록과 첫 태그 (§12.50) |
+| Docker Hub 공개 | **완료 (2026-09-20 · v0.1.0)** | 66교시 — MIT LICENSE · NOTICE · CI 이미지 빌드 · `v*` 태그 릴리스 워크플로(멀티아키 크로스 컴파일, 태그 vs `version.V` 대조). `suseong41/suseong-html-analyzer:0.1.0` · `:latest`, amd64·arm64, 3.4MB (§12.50) |
 | 한글 IDN 피싱 | 한계 | 의미로 속이는 것이라 도메인 문자열로는 못 잡는다 (§12.23) |
 | 변수를 거친 `eval` | 한계 | `var d=atob(x); eval(d)` — 변수 추적이 필요하다 (§12.21) |
 | `formaction` 덮어쓰기 | **완료** | 폼 규칙 5종 모두 반영 (§12.10) |
