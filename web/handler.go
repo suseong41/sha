@@ -185,6 +185,19 @@ func failureReason(err error) string {
 	return "other"
 }
 
+// fetchFailure(): 닿은 뒤에 생긴 실패만 응답.
+func fetchFailure(reason string) string {
+	switch reason {
+	case "timeout":
+		return "10초 안에 응답이 없었습니다 — 서버가 느리거나, 사람이 아닌 요청을 막고 있을 수 있습니다."
+	case "tls":
+		return "인증서를 검증하지 못했습니다."
+	case "too_large":
+		return "페이지가 5MB 를 넘어 받지 않았습니다."
+	}
+	return "가져오지 못했습니다."
+}
+
 func (h *handler) reject(w http.ResponseWriter, status int, reason, msg string) {
 	h.log.Info("scan rejected", "status", status, "reason", reason)
 	writeJSON(w, status, errorResponse{msg})
@@ -238,13 +251,15 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 	fetched := time.Now()
 	page, err := h.fetch(r.Context(), req.URL)
 	if err != nil {
-		h.log.Warn("scan", "status", http.StatusBadGateway, "reason", failureReason(err),
+		reason := failureReason(err)
+		h.log.Warn("scan", "status", http.StatusBadGateway, "reason", reason,
 			"scheme", scheme, "host", host, "ms", time.Since(start).Milliseconds())
+		msg := fetchFailure(reason)
 		if out.enc != nil {
-			out.send(event{T: "error", Text: "가져오지 못함"})
+			out.send(event{T: "error", Text: msg})
 			return
 		}
-		writeJSON(w, http.StatusBadGateway, errorResponse{"가져오지 못함"})
+		writeJSON(w, http.StatusBadGateway, errorResponse{msg})
 		return
 	}
 	out.send(event{T: "end", Name: "fetch", MS: time.Since(fetched).Milliseconds(), Text: fmt.Sprintf("%d 바이트", len(page.Body)), Final: page.URL})

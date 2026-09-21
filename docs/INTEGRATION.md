@@ -366,19 +366,26 @@ server
 
 **`/api/scan` 응답에는 CSP 헤더가 두 개 붙는다** — SHA 가 붙이는 `default-src 'none'` 과 nginx 가 붙이는 페이지용 정책이다. 브라우저는 둘 다 적용하므로 더 엄격한 쪽이 이긴다. 문제없다.
 
-### CSP 를 켜기 전에 — 지금 index.html 로는 동작하지 않는다
+### CSP 를 켰다 (2026-09-22)
 
-위 `Content-Security-Policy` 는 **목표로 하는 정책**이다. 현재 `index.html` 에 그대로 적용하면 페이지가 깨진다. **브라우저로는 확인하지 못했고**, CSP 규칙과 `index.html` 내용을 대조해 판단했다.
+`Report-Only` 를 떼고 실제로 막는 정책으로 바꿨다. 켜기 전에 막히던 것을 전부 치웠고, **헤드리스 Chrome 으로 두 페이지를 열어 위반 0건**을 확인했다.
 
-| 현재 index.html | 이 CSP 에서 | 필요한 작업 |
-|---|---|---|
-| 인라인 `<script>` 블록 1개 | 차단 | 별도 `.js` 파일로 옮긴다 |
-| `onclick="…"` 속성(카드 HTML 안) | 차단 | `addEventListener` 로 바꾼다 — 2절 방식으로 다시 쓰면 함께 해결된다 |
-| `cdn.jsdelivr.net` 의 `marked` | 허용 | 버전 고정 + `integrity` 권장(2절 표) |
-| `<style>` 블록 · `style=` 속성 | 허용(`'unsafe-inline'`) | — |
-| README 안의 외부 이미지 | 차단(`img-src 'self' data:`) | 쓴다면 이미지 도메인을 `img-src` 에 추가한다 |
+| 막던 것 | 어떻게 치웠나 |
+|---|---|
+| 인라인 `<script>` 180줄 | `assets/main.js` 로 빼고 **DOM API 로 다시 씀**(`innerHTML` 이 README 모달 한 곳만 남았다) |
+| `onclick="…"` 속성 | 목록에서 클릭을 한 번만 듣는 방식으로(`data-*` + `closest`) |
+| 템플릿 안의 `style="…"` | `el.style.x = …` — **CSSOM 은 CSP 가 막지 않는다.** 덕분에 `style-src` 에서 `'unsafe-inline'` 을 뺐다 |
+| CDN 의 `marked` | **직접 호스팅 + 버전 고정**(`marked 18.0.13`). `script-src 'self'` 가 되고 `sri-missing` 도 사라졌다 |
 
-작업이 끝나기 전에 헤더를 먼저 보고 싶다면 이름을 `Content-Security-Policy-Report-Only` 로 바꿔 넣는다. 그러면 차단하지 않고 위반 사항을 브라우저 콘솔에만 보여준다.
+```
+default-src 'self'; script-src 'self'; style-src 'self';
+img-src 'self' data: https:; connect-src 'self';
+object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+```
+
+`img-src` 만 `https:` 로 넓다. README 의 배지가 여러 호스트에서 오는데 호스트 목록을 만들면 배지가 늘 때마다 조용히 깨지고, **이미지는 스크립트를 실행하지 않는다.**
+
+> **버전을 안 적으면 최신을 쓰는 게 아니라 아무도 모르는 판을 쓰게 된다.** 고정하지 않은 `npm/marked/marked.min.js` 는 18.x 에서 그 파일이 사라지자 **jsdelivr 이 15.0.12 로 조용히 떨어뜨리고** 있었다.
 
 ---
 
