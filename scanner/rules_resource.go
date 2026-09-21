@@ -64,7 +64,7 @@ func (r *sriRule) Finish(ctx *Context) []Finding {
 		}
 		out = append(out, Finding{
 			Code: "sri-missing", Class: ClassSupplyChain,
-			Title: "외부 리소스에 integrity 없음", Severity: Medium,
+			Title: "외부 리소스에 integrity 없음", Severity: Low,
 			Offset: it.firstOff, Evidence: ev,
 		})
 	}

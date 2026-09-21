@@ -63,14 +63,23 @@ func TestRunFilters(t *testing.T) {
 		args  []string
 		codes []string
 	}{
-		{"-min medium", []string{"-min", "medium", "testdata/jnu_main.html", "https://www.jnu.ac.kr/"},
-			[]string{"sri-missing"}},
+		// 71교시에 sri-missing 이 LOW 가 되면서 이 정상 페이지에는 MEDIUM 이 하나도 남지 않는다.
+		{"-min medium — 정상 페이지", []string{"-min", "medium", "testdata/jnu_main.html", "https://www.jnu.ac.kr/"},
+			nil},
+		{"-min medium — 악성 샘플", []string{"-min", "medium", "testdata/malicious_sample.html", "https://bank.example.com/"},
+			[]string{"exfil-channel", "cross-origin-password-form", "webshell-signature", "obfuscated-eval", "javascript-url"}},
 		{"-class hardening", []string{"-class", "hardening", "testdata/jnu_main.html", "https://www.jnu.ac.kr/"},
 			[]string{"inline-handler", "target-blank-no-rel"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			_, out, _ := runCLI(c.args...)
+			if len(c.codes) == 0 {
+				if strings.TrimSpace(out) != "" {
+					t.Fatalf("아무것도 안 나와야 하는데:\n%s", out)
+				}
+				return
+			}
 			lines := strings.Split(strings.TrimSpace(out), "\n")
 			if len(lines) != len(c.codes) {
 				t.Fatalf("%d줄, want %d:\n%s", len(lines), len(c.codes), out)

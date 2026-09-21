@@ -4,7 +4,7 @@
 여기 적힌 설정과 코드는 전부 my_homepage 와 같은 구성(nginx + api + sha)을 compose 로 띄워 실제로 돌려봤다.
 돌려본 방법과 **돌려보지 못한 것**은 [7. 검증 기록](#7-검증-기록)에 있다. 확인되지 않은 부분은 본문에도 그렇다고 표시했다.
 
-작성 2026-09-16 · 갱신 2026-09-21(이미지 받아 쓰기 · `GET /healthz` · 동시 스캔 상한, SHA 0.2.0) · SHA 는 Go 1.27 · 이미지 `scratch` 기반
+작성 2026-09-16 · 갱신 2026-09-22(진행 상황 흘려받기, SHA 0.3.0) · 2026-09-21(이미지 받아 쓰기 · `GET /healthz` · 동시 스캔 상한) · SHA 는 Go 1.27 · 이미지 `scratch` 기반
 
 ---
 
@@ -83,6 +83,37 @@ Content-Type: application/json
 | 404 · 405 | SHA | **text/plain** | 경로나 메서드가 틀림 |
 
 502 의 원인을 일부러 구별해 주지 않는다. `intranet(10.1.2.3) 로는 접속하지 않는다` 같은 상세를 돌려주면, 우리 서버가 **내부 DNS 를 대신 조회해 주는 창구**가 된다. 원인은 응답 대신 **SHA 의 서버 로그**에 종류로 남는다(6절).
+
+### 진행 상황을 흘려받기 — `Accept: application/x-ndjson`
+
+같은 경로에 `Accept` 헤더 하나만 더하면 **끝난 결과 대신 진행 상황이 줄 단위로** 온다. 헤더가 없으면 위와 똑같이 한 덩어리 JSON 이다 — **기존 연동은 아무것도 바꿀 필요가 없다.**
+
+```
+POST /api/scan
+Content-Type: application/json
+Accept: application/x-ndjson
+```
+
+```jsonl
+{"t":"start","url":"https://naver.com/"}
+{"t":"begin","name":"fetch"}
+{"t":"end","name":"fetch","ms":125,"text":"263,350 바이트","final":"https://www.naver.com/"}
+{"t":"begin","name":"scan"}
+{"t":"end","name":"scan","ms":10,"text":"토큰 9,497개 · 발견 3건"}
+{"t":"done","ms":136,"result":{ …위의 200 응답과 같은 것… }}
+```
+
+| 줄 | 뜻 |
+|---|---|
+| `start` | 요청을 받았다 |
+| `begin` / `end` | 단계의 시작과 끝. 단계는 **둘뿐**이다 — `fetch`(가져오기) · `scan`(파싱·규칙) |
+| `end.ms` | 그 단계에 걸린 밀리초. 단계 합은 `done.ms` 를 넘지 않는다 |
+| `done.result` | **평소 200 응답과 완전히 같은 객체.** 화면은 이것으로 결과를 그리면 된다 |
+| `error` | 실패. 이 줄이 오면 `done` 은 오지 않는다 |
+
+**중요 — 흘리기 시작하면 상태 코드를 바꿀 수 없다.** 첫 줄을 보내는 순간 `200 OK` 가 확정되므로, 그 뒤의 실패(가져오기 실패 등)는 **HTTP 상태가 아니라 `error` 줄**로 온다. 받는 쪽은 `done` 이 오지 않고 끝나는 경우도 실패로 다뤄야 한다.
+
+반면 **흘리기 전에 나는 거절**(415 · 400 · 503 · nginx 의 413 · 429)은 지금처럼 상태 코드와 JSON 으로 온다.
 
 ### 상태 확인 — `GET /healthz`
 
@@ -298,6 +329,10 @@ server
         limit_req_status 429;
         proxy_pass http://sha:8080;
         proxy_read_timeout 35s;
+
+        # 진행 상황을 줄 단위로 흘려보내므로 모았다 보내면 안 된다.
+        proxy_buffering off;
+        proxy_http_version 1.1;
     }
 
     location /api/
@@ -322,6 +357,8 @@ server
 
 - Cloudflare 대역은 2026-09-16 에 `https://www.cloudflare.com/ips-v4` · `ips-v6` 에서 받은 값이다. **바뀔 수 있으니 주기적으로 대조한다.**
 - Cloudflare 프록시를 **끈** 상태로 운영한다면 이 블록을 지운다.
+
+**`proxy_buffering off`** — 이게 없으면 nginx 가 응답을 **다 모았다가 한 번에** 보낸다. 서버는 줄마다 흘려보내는데 화면에는 똑같이 한 번에 도착하므로, **컨테이너에 직접 물어보면 멀쩡하고 nginx 뒤에서만 어긋난다**(실측으로 드러났다). `proxy_http_version 1.1` 은 업스트림과 청크 전송을 쓰기 위한 것이다. 이 두 줄은 `/api/scan` 에만 건다 — 다른 경로는 버퍼링이 이득이다.
 
 **`location = /api/scan`** — `=` 정확 일치는 접두사 `/api/` 보다 먼저 선택된다. 순서와 무관하다. `client_max_body_size 4k` 가 SHA 의 본문 상한(4KB)과 같아서, 큰 요청은 SHA 까지 가지 않고 nginx 에서 413 으로 끝난다. `proxy_read_timeout 35s` 는 SHA 쪽 시간 상한(가져오기 10초, 응답 쓰기 30초)보다 길게 잡은 값이다.
 

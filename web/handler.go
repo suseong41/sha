@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"mime"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/suseong41/sha/fetcher"
@@ -99,6 +101,52 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+type event struct {
+	T      string        `json:"t"`
+	Name   string        `json:"name,omitempty"`
+	Text   string        `json:"text,omitempty"`
+	URL    string        `json:"url,omitempty"`
+	Final  string        `json:"final,omitempty"`
+	MS     int64         `json:"ms,omitempty"`
+	Result *scanResponse `json:"result,omitempty"`
+}
+
+type emitter struct {
+	enc   *json.Encoder
+	flush func()
+}
+
+func countTokens(res scanner.Result) int {
+	n := 0
+	for _, c := range res.Tokens {
+		n += c
+	}
+	return n
+}
+
+func (e *emitter) send(ev event) {
+	if e.enc == nil {
+		return
+	}
+	e.enc.Encode(ev)
+	e.flush()
+}
+
+// streamTo(): 스트리밍이면 헤더를 내보내고 emitter 생성
+func streamTo(w http.ResponseWriter, r *http.Request) *emitter {
+	f, ok := w.(http.Flusher)
+	if !ok || !strings.Contains(r.Header.Get("Accept"), ndjson) {
+		return &emitter{}
+	}
+	w.Header().Set("Content-Type", ndjson)
+	w.Header().Set("X-Contetn-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	f.Flush()
+	return &emitter{enc: json.NewEncoder(w), flush: f.Flush}
+}
+
+const ndjson = "application/x-ndjson"
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
@@ -182,29 +230,50 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 	scheme, host := schemeHost(req.URL)
+
+	out := streamTo(w, r)
+	out.send(event{T: "start", URL: req.URL})
+
+	out.send(event{T: "begin", Name: "fetch"})
+	fetched := time.Now()
 	page, err := h.fetch(r.Context(), req.URL)
 	if err != nil {
 		h.log.Warn("scan", "status", http.StatusBadGateway, "reason", failureReason(err),
 			"scheme", scheme, "host", host, "ms", time.Since(start).Milliseconds())
+		if out.enc != nil {
+			out.send(event{T: "error", Text: "가져오지 못함"})
+			return
+		}
 		writeJSON(w, http.StatusBadGateway, errorResponse{"가져오지 못함"})
 		return
 	}
+	out.send(event{T: "end", Name: "fetch", MS: time.Since(fetched).Milliseconds(), Text: fmt.Sprintf("%d 바이트", len(page.Body)), Final: page.URL})
 
+	out.send(event{T: "begin", Name: "scan"})
+	scanned := time.Now()
 	res := scanner.ScanURL(string(page.Body), page.URL)
 	scanner.SortBySeverity(res.Findings)
+	scanMS := time.Since(scanned).Milliseconds()
 
-	out := scanResponse{URL: page.URL, Findings: []findingJSON{}, Notes: []string{}}
+	body := scanResponse{URL: page.URL, Findings: []findingJSON{}, Notes: []string{}}
 	for _, f := range res.Findings {
-		out.Findings = append(out.Findings, findingJSON{
+		body.Findings = append(body.Findings, findingJSON{
 			Line: f.Line, Col: f.Col,
 			Severity: f.Severity.String(), Class: f.Class.String(),
 			Code: f.Code, Title: f.Title, Evidence: f.Evidence,
 		})
 	}
-	out.Notes = append(out.Notes, res.Notes...)
+	body.Notes = append(body.Notes, res.Notes...)
+	out.send(event{T: "end", Name: "scan", MS: scanMS, Text: fmt.Sprintf("토큰 %d개 · 발견 %d건", countTokens(res), len(res.Findings))})
+
 	_, finalHost := schemeHost(page.URL)
 	h.log.Info("scan", "status", http.StatusOK, "scheme", scheme, "host", host, "final_host", finalHost,
 		"findings", len(res.Findings), "notes", len(res.Notes), "bytes", len(page.Body),
 		"ms", time.Since(start).Milliseconds())
-	writeJSON(w, http.StatusOK, out)
+
+	if out.enc != nil {
+		out.send(event{T: "done", MS: time.Since(start).Milliseconds(), Result: &body})
+		return
+	}
+	writeJSON(w, http.StatusOK, body)
 }

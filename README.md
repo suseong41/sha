@@ -40,13 +40,13 @@ WHATWG 토크나이저(브라우저와 동일하게 해석)를 만들고, 그 �
   | MEDIUM | execution | `javascript-url` | `javascript:` URL (문자 참조 우회 포함) |
   | MEDIUM | execution | `dangerous-download` | `.hta`·`.scr`·`.vbs` 등으로 연결되는 링크 |
   | MEDIUM | origin | `iframe-sandbox-escape` | `allow-scripts` 와 `allow-same-origin` 동시 허용 |
-  | MEDIUM | supply-chain | `sri-missing` | 외부 리소스에 `integrity` 없음 |
   | MEDIUM | supply-chain | `mixed-content` | HTTPS 페이지의 `http://` 하위 리소스 |
   | MEDIUM | supply-chain | `resource-ip-literal` | 하위 리소스를 IP 주소에서 로드 |
   | MEDIUM | evasion | `obfuscated-eval` | `eval()` + 디코더(`atob` 등) 조합 |
   | MEDIUM | evasion | `noscript-breakout` | `<noscript>` 안 속성값·주석·`<style>` 에 숨긴 `</noscript>` 로 탈출 |
   | MEDIUM | hardening | `weak-password-field` | 이름은 비밀번호인데 `type` 이 `password` 가 아님 |
   | MEDIUM | hardening | `local-credential-post` | 비밀번호 폼이 `localhost`·`127.0.0.1` 로 전송 |
+  | LOW | supply-chain | `sri-missing` | 외부 리소스에 `integrity` 없음 — 웹의 기본 상태라 악성·정상을 가르지 못합니다 |
   | LOW | evasion | `zero-width` | 제로폭 문자 난독화 |
   | LOW | hardening | `inline-handler` | 인라인 이벤트 핸들러 (`onclick` 등) |
   | INFO | hardening | `target-blank-no-rel` | `target=_blank` 에 `rel=noopener` 없음 |
@@ -95,7 +95,7 @@ go build .
 
 ```
 page.html:6:1:  HIGH   exfiltration [exfil-channel]  action=https://api.telegram.org/bot123/sendMessage
-page.html:16:5: MEDIUM supply-chain [sri-missing]    c.example-cdn.com (3곳)
+page.html:16:5: LOW    supply-chain [sri-missing]    c.example-cdn.com (3곳)
 ```
 발견과 별개로 **분석의 한계**를 stderr 에 보고합니다.
 SPA 셸처럼 내용을 스크립트가 그리는 페이지가 그렇습니다.
@@ -125,14 +125,33 @@ curl -s -H 'Content-Type: application/json' \
 {
   "url": "https://www.naver.com/",
   "findings": [
-    { "line": 1,  "col": 1655, "severity": "MEDIUM", "class": "supply-chain", "code": "sri-missing",    "evidence": "ssl.pstatic.net (4곳)" },
-    { "line": 24, "col": 1939, "severity": "LOW",    "class": "hardening",    "code": "inline-handler", "evidence": "<button onclick=…>" }
+    { "line": 24, "col": 1939, "severity": "LOW", "class": "hardening",    "code": "inline-handler", "evidence": "<button onclick=…>" },
+    { "line": 1,  "col": 1655, "severity": "LOW", "class": "supply-chain", "code": "sri-missing",    "evidence": "ssl.pstatic.net (4곳)" }
   ],
   "notes": []
 }
 ```
 
 동시에 처리하는 스캔은 **기본 4개**입니다(`-max-scans`). 자리가 없으면 2초까지 기다렸다가 `503` 과 `Retry-After: 1` 을 돌려줍니다.
+
+진행 상황을 보고 싶으면 `Accept: application/x-ndjson` 을 붙입니다. 끝난 결과 대신 단계마다 한 줄씩 옵니다.
+
+```sh
+curl -N -H 'Content-Type: application/json' -H 'Accept: application/x-ndjson' \
+     -d '{"url":"https://www.naver.com/"}' http://127.0.0.1:8080/api/scan
+```
+
+```jsonl
+{"t":"start","url":"https://www.naver.com/"}
+{"t":"begin","name":"fetch"}
+{"t":"end","name":"fetch","ms":125,"text":"263,350 바이트"}
+{"t":"begin","name":"scan"}
+{"t":"end","name":"scan","ms":10,"text":"토큰 9,497개 · 발견 3건"}
+{"t":"done","ms":136,"result":{ …위와 같은 응답… }}
+```
+
+단계는 **가져오기와 파싱·규칙 둘뿐**입니다 — 따로 잴 수 있는 것만 보고합니다.
+헤더를 붙이지 않으면 지금까지와 똑같이 한 덩어리 JSON 이 옵니다.
 
 서버가 살아 있는지는 `GET /healthz` 로 묻습니다 — `{"status":"ok"}` 만 돌려주고, 밖으로 나가지 않으며 로그도 남기지 않습니다.
 
