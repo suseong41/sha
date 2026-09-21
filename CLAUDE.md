@@ -53,7 +53,7 @@ scratchpad/<이름>/ 에 tokenizer/ scanner/ go.mod testdata/ 를 복사
 
 HTML을 파싱해 XSS·피싱·리소스 위험을 찾는 **정적 보안 스캐너** (Go, 외부 의존성 0).
 이름은 **SHA**(Suseong-Html-Analyzer). 식별자는 전부 소문자 `sha` — 모듈 `github.com/suseong41/sha` · 저장소 `suseong41/sha` · 이미지 `suseong41/sha` · 실행 파일 `sha`.
-**2026-09-21 에 옛 이름(`suseong-html-analyzer`)에서 바꿨다**(67교시). 옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 지우지 않는다 — 받아 쓰는 사람이 깨진다.
+**2026-09-21 에 옛 이름(`suseong-html-analyzer`)에서 바꿨다**(67교시). 옛 Docker Hub 저장소는 같은 날 **지웠다** — 공개 13시간 · 어디에도 알린 적 없음 · star 0 · pull 85 가 전부 자동 크롤러로 보였다(새 저장소가 1.5시간 만에 69). **받아 쓰는 사람이 있었다면 남겼을 것이다.**
 
 ```
 main.go        CLI — 파일 읽기 · 스캔 호출 · 출력만
@@ -646,7 +646,7 @@ CI 에 `image` 잡 추가 — 스모크는 **`/healthz` 만** 두드린다(바�
 대문자 가능 여부를 먼저 쟀다: Docker 이미지 **불가**(`must be lowercase`) · Go 모듈은 가능하나 프록시가 `!s!h!a` 로 이스케이프 · GitHub 저장소는 가능. **한 곳이 반드시 소문자면 전부 소문자**가 어긋남 0 → 식별자 `sha`, 대문자 SHA 는 읽는 자리에만.
 치환은 `git grep -l ... | xargs sed` 한 줄(추적 파일만 — `.git`·코퍼스 HTML 안 건드림). 31개 파일, 744 테스트 그대로. 실행 파일 이름은 **모듈 경로 끝 조각**이라 저절로 `sha`.
 **함정**: 일괄 치환이 **이력 문장까지** 바꿔 "옛 이미지 …:0.1.0" 이 존재하지 않는 이름을 가리키게 됐다 — README·§12.50·§14·교시 요약 5곳을 되돌렸다. 스크래치패드 측정 도구의 `replace` 경로도 함께 고쳤다.
-옛 이미지 `suseong41/suseong-html-analyzer:0.1.0` 은 **지우지 않는다**. GitHub 은 옛 주소를 리다이렉트한다.
+옛 이미지는 **지웠다**(위 2절 근거). GitHub 은 옛 저장소 주소를 리다이렉트하지만 **Docker Hub 에는 그런 기능이 없다** — 옛 이름으로 오면 그냥 not found 다.
 
 **68교시** — my_homepage 연동 · README 정리. **계약을 남의 페이지에서 지키는 일.**
 바꾼 것 셋(`docker-compose.yml` · `nginx/nginx.conf` · `html/index.html`), **212줄 추가 · 삭제 0**. 서비스는 `build:` 가 아니라 **`image: suseong41/sha:0.2.0`**(버전 고정) · CSP 는 **Report-Only**(페이지가 아직 인라인 스크립트·onclick 을 씀) · 결과는 **`textContent` 만**.

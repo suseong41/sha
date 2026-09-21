@@ -1,7 +1,7 @@
 # SHA — Suseong-Html-Analyzer
 
 ![CI](https://github.com/suseong41/sha/actions/workflows/ci.yml/badge.svg)
-[![Docker Hub](https://img.shields.io/docker/v/suseong41/sha?label=docker%20hub&sort=semver)](https://hub.docker.com/r/suseong41/sha)
+[![Docker Hub](https://img.shields.io/docker/v/suseong41/sha?sort=semver&label=docker%20hub)](https://hub.docker.com/r/suseong41/sha)
 
 **SHA**(Suseong-Html-Analyzer) - HTML을 파싱해 **XSS·피싱·리소스 위험**을 찾아내는 정적 보안 스캐너.
 정적 분석 도구로 "패턴이 존재한다"는 것을 보고할 뿐,
