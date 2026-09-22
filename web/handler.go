@@ -92,10 +92,17 @@ type findingJSON struct {
 	Evidence string `json:"evidence"`
 }
 
+// ruleJSON: 나온 규칙의 설명
+type ruleJSON struct {
+	Why string `json:"why"`
+	Fix string `json:"fix"`
+}
+
 type scanResponse struct {
-	URL      string        `json:"url"`
-	Findings []findingJSON `json:"findings"`
-	Notes    []string      `json:"notes"`
+	URL      string              `json:"url"`
+	Findings []findingJSON       `json:"findings"`
+	Notes    []string            `json:"notes"`
+	Rules    map[string]ruleJSON `json:"rules"`
 }
 
 type errorResponse struct {
@@ -281,13 +288,16 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 	scanner.SortBySeverity(res.Findings)
 	scanMS := time.Since(scanned).Milliseconds()
 
-	body := scanResponse{URL: pageURL, Findings: []findingJSON{}, Notes: []string{}}
+	body := scanResponse{URL: pageURL, Findings: []findingJSON{}, Notes: []string{}, Rules: map[string]ruleJSON{}}
 	for _, f := range res.Findings {
 		body.Findings = append(body.Findings, findingJSON{
 			Line: f.Line, Col: f.Col,
 			Severity: f.Severity.String(), Class: f.Class.String(),
 			Code: f.Code, Title: f.Title, Evidence: f.Evidence,
 		})
+		if e, ok := scanner.Explain(f.Code); ok {
+			body.Rules[f.Code] = ruleJSON{Why: e.Why, Fix: e.Fix}
+		}
 	}
 	body.Notes = append(body.Notes, res.Notes...)
 	out.send(event{T: "end", Name: "scan", MS: scanMS, Text: fmt.Sprintf("토큰 %d개 · 발견 %d건", countTokens(res), len(res.Findings))})

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/suseong41/sha/sarif"
 	"github.com/suseong41/sha/scanner"
 	"github.com/suseong41/sha/version"
 )
@@ -32,6 +34,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	className := fs.String("class", "", "분류로 거르기 (exfiltration|execution|origin|supply-chain|evasion|hardening)")
 	showStats := fs.Bool("stats", false, "토큰·태그 통계도 출력")
 	showVersion := fs.Bool("version", false, "버전을 찍고 끝낸다")
+	asSARIF := fs.Bool("sarif", false, "SARIF 2.1.0 으로 출력 (CI 용)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -75,6 +78,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	res := scanner.ScanURL(string(data), pageURL)
 
 	var findings []scanner.Finding
+
 	for _, f := range res.Findings {
 		if f.Severity < min {
 			continue
@@ -85,6 +89,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 		findings = append(findings, f)
 	}
 	scanner.SortBySeverity(findings)
+
+	if *asSARIF {
+		enc := json.NewEncoder(stdout)
+		enc.SetIndent("", " ")
+		if err := enc.Encode(sarif.New(version.V, path, findings, res.Notes)); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		if len(findings) == 0 {
+			return 0
+		}
+		return 1
+	}
 
 	for _, f := range findings {
 		fmt.Fprintf(stdout, "%s:%d:%d: %-6s %-13s [%s] %s\n",

@@ -89,6 +89,9 @@ go build .
 
 # 버전
 ./sha -version
+
+# SARIF 2.1.0 으로 (CI · GitHub code scanning)
+./sha -sarif page.html https://example.com/ > results.sarif
 ```
 
 출력은 `파일:줄:칸: 심각도 분류 [규칙] 근거` 형식이라 에디터에서 바로 점프할 수 있습니다.
@@ -103,6 +106,23 @@ SPA 셸처럼 내용을 스크립트가 그리는 페이지가 그렇습니다.
 
 **종료 코드** — `0` 발견 없음 · `1` 발견 있음 · `2` 사용법/입출력 오류.
 CI 에서 `-min high` 로 걸어 실패시킬 수 있습니다.
+
+#### CI 에 붙이기 — SARIF
+
+`-sarif` 를 주면 사람이 읽는 줄 대신 **SARIF 2.1.0** 문서 하나를 표준 출력으로 냅니다.
+GitHub code scanning 이 그대로 받으므로, 발견이 저장소의 **Security 탭과 PR 주석**으로 올라옵니다.
+
+```yaml
+- run: ./sha -sarif page.html https://example.com/ > results.sarif
+  continue-on-error: true          # 발견이 있으면 종료 코드가 1 입니다
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: results.sarif
+```
+
+규칙마다 **왜 위험한지와 어떻게 고치는지**가 함께 실리고, 등급은 `HIGH → error` ·
+`MEDIUM → warning` · `LOW`·`INFO` → `note` 로 옮겨집니다.
+**분석의 한계(참고)는 발견이 아니므로** 결과가 아니라 `toolExecutionNotifications` 로 들어갑니다.
 
 #### Docker 로 URL 검사
 
