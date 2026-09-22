@@ -24,3 +24,8 @@ Makefile
 
 # 실전 측정에서 받은 페이지 
 /testdata/live/
+
+# SARIF 검증 단계가 만드는 것 (CI · 로컬에서 같은 명령을 돌릴 때)
+/.venv/
+/sarif-schema.json
+/*.sarif

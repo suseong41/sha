@@ -121,3 +121,36 @@ jobs:
         run: |
           docker logs sha-ci 2>&1 | grep -q '"version":"' || { docker logs sha-ci; exit 1; }
           docker logs sha-ci 2>&1 | grep -q '"max_scans":' || { docker logs sha-ci; exit 1; }
+
+  # 우리가 정한 형식이 아니라 남이 정한 형식이라, 남의 검증기로 본다.
+  sarif:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: 빌드
+        run: go build -o sha .
+
+      # 발견 있음 · 없음 · 참고만 있음 — 세 모양을 다 낸다.
+      - name: SARIF 생성
+        run: |
+          ./sha -sarif testdata/malicious_sample.html https://bank.example.com/ > bad.sarif || true
+          ./sha -sarif testdata/jnu_main.html https://www.jnu.ac.kr/ > clean.sarif || true
+          ./sha -sarif testdata/spa_shell.html https://app.example.com/ > spa.sarif || true
+
+      # 커밋으로 고정한다 — 고정 안 한 주소는 아무도 모르는 판을 쓰게 된다 (72교시).
+      - name: 공식 스키마 (OASIS SARIF 2.1.0)
+        run: |
+          curl -fsSL -o sarif-schema.json \
+            https://raw.githubusercontent.com/oasis-tcs/sarif-spec/a560296ca8c921f3bdb8d4a8db57ab83dae968a7/sarif-2.1/schema/sarif-schema-2.1.0.json
+
+      # 대조군이 함께 돈다 — 깨뜨린 문서가 실패해야 "통과"가 뜻을 갖는다.
+      - name: 스키마 검증
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet jsonschema
+          .venv/bin/python tools/validate_sarif.py sarif-schema.json bad.sarif clean.sarif spa.sarif

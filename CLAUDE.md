@@ -178,6 +178,14 @@ gofmt -l .              # 출력이 있으면 실패
 docker build -t sha .   # 실행 이미지 (scratch · 비루트 · https 인증서)
 go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...   # 알려진 취약점 — CI vuln 잡이 푸시·주간에 돌린다
 
+# SARIF — 남이 정한 형식이라 남의 검증기로 본다 (CI sarif 잡이 같은 것을 돌린다)
+./sha -sarif testdata/malicious_sample.html https://bank.example.com/ > bad.sarif
+curl -fsSL -o sarif-schema.json https://raw.githubusercontent.com/oasis-tcs/sarif-spec/a560296ca8c921f3bdb8d4a8db57ab83dae968a7/sarif-2.1/schema/sarif-schema-2.1.0.json
+python3 -m venv .venv && .venv/bin/pip install jsonschema      # PEP 668 때문에 venv 가 필요하다
+.venv/bin/python tools/validate_sarif.py sarif-schema.json bad.sarif
+#   스크립트가 대조군 셋(필수 필드 제거·version 변조·results 를 객체로)을 함께 돌린다 —
+#   그게 실패해야 "통과"가 뜻을 갖는다
+
 # 퍼징 — 큰 변경 뒤에는 길게
 go test ./tokenizer -run '^$' -fuzz FuzzTokenizer -fuzztime 5m
 go test ./scanner   -run '^$' -fuzz FuzzScan      -fuzztime 5m
@@ -721,6 +729,7 @@ API 는 **CLI 가 이미 하는 일**(`sha 파일.html <주소>`)이라 골랐�
 | 단위 테스트 | ✗ | `encoding/json` 이 되받을 때 **대소문자를 안 가린다** — `PhysicalLocation` 도 들어온다 |
 | 공식 스키마 | **✓** | 남이 정한 이름과 대조 (오류 5건) |
 69교시의 `json:"decription"` 은 정반대였다(모양은 멀쩡, 이름이 틀림 → vet 침묵, 골든 대조가 잡음). **태그가 깨지면 vet 이, 이름이 틀리면 대조군이 잡는다. 되받는 구조체는 둘 다 못 본다.** → `TestEveryFieldHasJSONTag` 가 반사로 모든 타입을 훑어 이 부류를 통째로 막는다.
+**CI 에 `sarif` 잡을 더했다** — 세 모양(발견 있음·없음·참고만)을 내고 고정한 커밋의 공식 스키마로 검증한다. `tools/validate_sarif.py` 가 대조군을 함께 돌리므로 검증기가 놀고 있으면 빨개진다. 러너의 파이썬은 PEP 668 이라 **venv 를 만들어 쓴다**(로컬에서 겪은 그대로).
 사용자 오타 넷이 좋은 표본이 됐다: `stringg`(컴파일러) · 깨진 태그 4개(vet) · `"2.9"`(테스트 — GitHub 화면은 4.0 미만을 다 Low 로 읽어 **눈으로는 못 찾는다**) · `len(findings) == 2` 와 **분기 자리**(거르기 **전**에 둬서 findings 가 늘 비었다 — 63교시 `-version` 과 같은 문제, 그리고 **둘이 서로를 가렸다**).
 
 1. **남은 보류**: HIGH 규칙 실측 — 데이터셋 도착 · 첫 측정(§12.37) · A(57) · B(58) · C 규칙(59 · 60 · 62) · D(61) · ransomware 분석(만들지 않음). **C 마무리.** 다시 볼 조건들은 보류 표에(단일 체계 위조 · browlock). 단일 체계 위조는 측정 후 보류 유지(다시 볼 조건은 보류 표에).
