@@ -77,7 +77,8 @@ func secureHeaders(next http.Handler) http.Handler {
 }
 
 type scanRequest struct {
-	URL string `json:"url"`
+	URL  string `json:"url"`
+	HTML string `json:"html"`
 }
 
 // findingJSON: Severity·Class를 이름으로 바꿔 보냄.
@@ -236,8 +237,12 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, status, "body", http.StatusText(status))
 		return
 	}
-	if req.URL == "" || maxURLLen < len(req.URL) {
-		h.reject(w, http.StatusBadRequest, "url_length", "url 은 1~2048자")
+	if req.URL == "" && req.HTML == "" {
+		h.reject(w, http.StatusBadRequest, "input", "url 또는 html이 필요함")
+		return
+	}
+	if maxURLLen < len(req.URL) {
+		h.reject(w, http.StatusBadRequest, "url_length", "url은 2048자 이하")
 		return
 	}
 
@@ -247,30 +252,36 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 	out := streamTo(w, r)
 	out.send(event{T: "start", URL: req.URL})
 
-	out.send(event{T: "begin", Name: "fetch"})
-	fetched := time.Now()
-	page, err := h.fetch(r.Context(), req.URL)
-	if err != nil {
-		reason := failureReason(err)
-		h.log.Warn("scan", "status", http.StatusBadGateway, "reason", reason,
-			"scheme", scheme, "host", host, "ms", time.Since(start).Milliseconds())
-		msg := fetchFailure(reason)
-		if out.enc != nil {
-			out.send(event{T: "error", Text: msg})
+	input := "html" // html을 받은지 구분
+	html, pageURL := req.HTML, req.URL
+	if req.HTML == "" {
+		input = "url"
+		out.send(event{T: "begin", Name: "fetch"})
+		fetched := time.Now()
+		page, err := h.fetch(r.Context(), req.URL)
+		if err != nil {
+			reason := failureReason(err)
+			h.log.Warn("scan", "status", http.StatusBadGateway, "reason", reason,
+				"scheme", scheme, "host", host, "ms", time.Since(start).Milliseconds())
+			msg := fetchFailure(reason)
+			if out.enc != nil {
+				out.send(event{T: "error", Text: msg})
+				return
+			}
+			writeJSON(w, http.StatusBadGateway, errorResponse{msg})
 			return
 		}
-		writeJSON(w, http.StatusBadGateway, errorResponse{msg})
-		return
+		out.send(event{T: "end", Name: "fetch", MS: time.Since(fetched).Milliseconds(), Text: fmt.Sprintf("%d 바이트", len(page.Body)), Final: page.URL})
+		html, pageURL = string(page.Body), page.URL
 	}
-	out.send(event{T: "end", Name: "fetch", MS: time.Since(fetched).Milliseconds(), Text: fmt.Sprintf("%d 바이트", len(page.Body)), Final: page.URL})
 
 	out.send(event{T: "begin", Name: "scan"})
 	scanned := time.Now()
-	res := scanner.ScanURL(string(page.Body), page.URL)
+	res := scanner.ScanURL(html, pageURL)
 	scanner.SortBySeverity(res.Findings)
 	scanMS := time.Since(scanned).Milliseconds()
 
-	body := scanResponse{URL: page.URL, Findings: []findingJSON{}, Notes: []string{}}
+	body := scanResponse{URL: pageURL, Findings: []findingJSON{}, Notes: []string{}}
 	for _, f := range res.Findings {
 		body.Findings = append(body.Findings, findingJSON{
 			Line: f.Line, Col: f.Col,
@@ -281,11 +292,10 @@ func (h *handler) scan(w http.ResponseWriter, r *http.Request) {
 	body.Notes = append(body.Notes, res.Notes...)
 	out.send(event{T: "end", Name: "scan", MS: scanMS, Text: fmt.Sprintf("토큰 %d개 · 발견 %d건", countTokens(res), len(res.Findings))})
 
-	_, finalHost := schemeHost(page.URL)
-	h.log.Info("scan", "status", http.StatusOK, "scheme", scheme, "host", host, "final_host", finalHost,
-		"findings", len(res.Findings), "notes", len(res.Notes), "bytes", len(page.Body),
+	_, finalHost := schemeHost(pageURL)
+	h.log.Info("scan", "status", http.StatusOK, "input", input, "scheme", scheme, "host", host, "final_host", finalHost,
+		"findings", len(res.Findings), "notes", len(res.Notes), "bytes", len(html),
 		"ms", time.Since(start).Milliseconds())
-
 	if out.enc != nil {
 		out.send(event{T: "done", MS: time.Since(start).Milliseconds(), Result: &body})
 		return

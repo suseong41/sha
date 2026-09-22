@@ -16,7 +16,13 @@ import (
 // postNDJSON(): 흘려보내 달라고 청하고, 줄들을 받아 온다.
 func postNDJSON(t *testing.T, h http.Handler, target string) []event {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/api/scan", strings.NewReader(scanRequestFor(target)))
+	return postStream(t, h, scanRequestFor(target))
+}
+
+// postStream(): 본문을 그대로 보내 NDJSON 줄을 받는다 (html 입력용).
+func postStream(t *testing.T, h http.Handler, body string) []event {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/api/scan", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", ndjson)
 	rec := httptest.NewRecorder()
