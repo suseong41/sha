@@ -80,7 +80,7 @@ testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · 
 설정 파일을 `exec` 하므로 **실행하지 말고** 함수만 import 해서 잰다.
 
 설계 논의 전문: [DISCUSSION.md](DISCUSSION.md) ·
-Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 32 — 논의 9-0(첫 연구) · 12-36~38(ransomware · 가려진 리다이렉트 · HIGH 규칙의 근거) · **12-39~44(배포 · 이름 통일 · my_homepage 연동 · Go 이관 · 스트리밍 · sri-missing 등급)** · 71교시까지. 제목도 'SHA 설계 기록'으로.
+Artifact: https://claude.ai/artifact/SwNhX22pnNSbMEp6X7emC3 (예전 주소 …/code/artifact/d20c0096-… 와 같은 문서, Version 33 — 논의 9-0(첫 연구) · 12-36~38(ransomware · 가려진 리다이렉트 · HIGH 규칙의 근거) · 12-39~44(배포 · 이름 통일 · my_homepage 연동 · Go 이관 · 스트리밍 · sri-missing 등급) · **12-45~49(CSP · html 입력과 악성 샘플 · 규칙 설명 · 응답 헤더 기각 · SARIF)** · 75교시까지. 제목도 'SHA 설계 기록'으로.
 갱신은 `Artifact read` 로 받은 최신판에서 시작한다 — 스크래치패드 사본은 사라지거나 낡을 수 있다)
 
 ---
