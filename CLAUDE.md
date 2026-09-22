@@ -68,6 +68,7 @@ Dockerfile     멀티 스테이지 → scratch · TARGETARCH 로 크로스 컴�
 LICENSE        MIT(suseong41). 68교시에 gTest(BSD-3) 63개를 지워 제3자 코드가 없어졌고 NOTICE 도 없앴다
 .github/workflows/  ci.yml(gofmt·vet·test·빌드·스모크·govulncheck·퍼징·**이미지 빌드**) · release.yml(v* 태그 → Docker Hub)
 docs/INTEGRATION.md  my_homepage 연동 명세 — API 계약 · 그리는 쪽 보안 규칙 · compose · nginx · Cloudflare · 검증 기록
+                     ↳ **웹사이트 쪽 작업 방식은 `my_homepage/CLAUDE.md` 에 있다** (2026-09-22 분리). 이 저장소는 계약만 소유한다
 tools/         measure.sh — 실전 측정 (받은 페이지는 testdata/live/, 커밋 안 함)
 old_c_files/   Go 전환 전 C++ 원본 (참조용, 수정하지 않음). gTest 를 지워 **지금은 빌드되지 않는다** — 읽기용이다
 testdata/      jnu_main.html(정상) · malicious_sample.html(합성 악성) · spa_shell.html
@@ -263,61 +264,19 @@ C-TAS 악성 HTML 24,636개: HIGH 표본 3,955 · 공격 분류 발견 0건 13,2
 
 ---
 
-### ▶ 다음 할 일 — 도구에서 서비스로 (2026-09-15 결정 · 같은 날 배포 구조 확정으로 수정)
+### ▶ 도구에서 서비스로 (2026-09-15 결정 → **2026-09-22 완료**)
 
-> **배포 구조 (사용자 확인, `/Users/suseong/test/my_homepage` 를 읽어 확인):**
-> ```
-> 브라우저 ─443─▶ nginx ─┬─ /             정적 html/index.html (페이지는 my_homepage 가 담당)
->                        ├─ /api/…        ▶ api:8000  (FastAPI, expose 만)
->                        └─ /api/scan     ▶ sha:8080  (이 Go 프로젝트, expose 만) ← 붙일 것
-> ```
-> SHA 는 my_homepage 의 `tools/SHA` 로 들어가 **Docker 로 뜨고 내부 통신**한다. **Go 는 HTML 이 아니라 JSON 을 돌려준다.**
-> **내 실수**: 51교시에서 Go 가 페이지 자체를 서빙한다고 가정하고 폼 페이지·`report` 패키지를 만들었다.
-> 웹 계층을 짜기 전에 **배포 구조를 먼저 물었어야 했다.** → `report/` 와 폼 페이지는 사용자 위임으로 삭제(52교시 직전).
-> **API 로 바뀌어도 책임은 사라지지 않고 옮겨 간다:**
-> - 출력 이스케이프(50교시) → **`index.html` 의 JS**. 현재 `repoCardHtml`·`postCardHtml` 이 템플릿 리터럴을 `innerHTML` 에
->   이스케이프 없이 넣는다(`html/index.html:617-619`, `708-710`). 자기 데이터라 지금은 위험이 낮지만 **스캔 증거를
->   같은 방식으로 붙이면 suseong.org 에 XSS.** `marked.parse` → `innerHTML` 도 같은 패턴(marked 는 소독 안 함).
-> - CSP·보안 헤더 → **nginx** (현재 `nginx.conf` 에 보안 헤더 0개). 남용 방지 → **nginx `limit_req`** (Go 는 nginx IP 만 본다).
-> - SSRF 방어는 Go 에 그대로이고 Docker 에서 **더 중요**: compose 서비스 이름은 `172.18.0.x`(private), 내장 DNS 는
->   `127.0.0.11`(loopback) — 47교시 판정이 이미 막는다. 문자열 검사였다면 `http://api:8000/` 이 통과했다.
-> - 컨테이너 안에서는 `-addr 0.0.0.0:8080` (127.0.0.1 이면 nginx 가 못 닿는다). 외부 차단은 compose 의 `expose`.
+> **이 계획은 전부 끝났다 (2026-09-22).** 아래 목록은 어디로 갔는지만 남긴다.
 >
-> **새 순서 (같은 날 다시 수정 — my_homepage 는 사용자가 나중에 직접 작업한다):**
-> ~~52교시 JSON API~~ **완료**. **my_homepage(index.html · nginx · compose)는 이 수업 범위가 아니다.**
-> 대신 넘겨줄 **명세**를 이 저장소에서 만든다. 명세에 **반드시** 들어갈 것:
-> ① API 계약 — `POST /api/scan`, `Content-Type: application/json`, `{"url"}` → `{"url","findings":[…],"notes":[…]}` ·
->   오류는 `{"error"}` + 400/413/415/502 · 빈 결과도 `[]` · `url` 은 최종 URL · 정렬은 서버가 끝냄
-> ② **그리는 쪽 보안 요구** — `evidence`·`title`·`url`·`notes` 는 **공격자가 고른 문자열**이다. `innerHTML`·템플릿 리터럴 금지,
->   `textContent`·`createElement` 로. 현재 index.html 의 `repoCardHtml`·`postCardHtml` 패턴을 그대로 쓰면 XSS.
->   `notes` 가 있으면 "발견 없음"을 "안전"으로 보여주지 말 것(SPA 셸). 대상 URL 을 클릭 가능한 링크로 만들지 말 것.
-> ③ nginx — `location /api/scan` → `sha:8080` · 보안 헤더(CSP 등) · `limit_req`(Go 는 nginx IP 만 본다) · 요청 본문 상한
-> ④ compose — `expose` 만(`ports` 금지) · 컨테이너 안에서 `-addr 0.0.0.0:8080`
-> ⑤ **Cloudflare 프록시 뒤라면(사용자: 운영 서버는 Cloudflare 인증서) — 확인 전 조건부:**
->   - nginx 의 `$remote_addr` 는 방문자가 아니라 **Cloudflare 엣지 IP**. 지금 `X-Real-IP $remote_addr` 도 엣지 IP.
->     `limit_req` 가 엣지 단위로 걸린다 → `set_real_ip_from <Cloudflare 대역>` + `real_ip_header CF-Connecting-IP`
->     (Cloudflare 대역에서 온 연결의 헤더만 믿어야 한다 — 원서버에 직접 붙으면 누구나 헤더를 위조한다).
->   - **SHA 가 원서버 IP 를 흘린다.** 공격자가 자기 서버 URL 을 넣으면 접속 로그에 원서버 IP 가 찍힌다 →
->     Cloudflare 를 우회해 원서버를 직접 칠 수 있다. 대응: 원서버 80/443 을 **Cloudflare 대역만 허용** ·
->     또는 SHA 의 나가는 연결을 **다른 IP(프록시/VPN)** 로 — 위협 표의 "우리 IP 노출" 행이 여기서 현실이 된다.
->   - 이미지의 CA 인증서 묶음은 **나가는 쪽**(스캔 대상 검증)용이다. 사이트의 Cloudflare 인증서(들어오는 쪽, nginx)와 무관.
-> **이 저장소 쪽 남은 일**: ~~Dockerfile~~(53교시) · ~~명세 문서~~ → **`docs/INTEGRATION.md`** · ~~Artifact 따라잡기~~ → Version 21 (논의 12-20 ~ 12-23).
-> 명세의 설정·코드는 전부 compose 로 띄워 검증했고, 문서에서 코드 블록을 뽑아 다시 돌려 옮겨 적기 오류도 확인했다.
-> **명세를 고칠 때도 같은 방식으로 다시 검증한다** (7절 검증 기록 표를 함께 갱신).
-> **Go 버전 (2026-09-15 측정)**: go1.24.6 은 지원 종료 줄. `govulncheck -mode=binary` 로 **우리 코드가 호출하는 표준 라이브러리
-> 취약점 26건**(net/url · net/http · crypto/tls · crypto/x509 · net — fetcher 경로). go1.27.1 은 0건, 테스트 638개 그대로 통과.
-> 1.24.6 을 고른 이유는 go.mod·로컬과 맞추기였고 **지원 상태를 확인하지 않은 내 실수**. → go.mod `go 1.27.1`
-> (로컬 `GOTOOLCHAIN=auto` 라 자동 전환 확인 · CI 는 `go-version-file: go.mod`) · Dockerfile `golang:1.27-alpine`(패치는 재빌드 때 따라옴).
-> 공식 golang 이미지는 `GOTOOLCHAIN=local` 이라 자동 전환 안 됨.
-> **나중 계획 (2026-09-16 사용자): Docker Hub 에 이미지를 올려 소스 없이 바로 쓰게 한다.** 그때 확인할 것:
-> - **아키텍처** — 이 Mac 에서 빌드한 `sha:latest` 는 `linux/arm64` 뿐(확인함). amd64 서버에서는 안 돈다 →
->   `docker buildx build --platform linux/amd64,linux/arm64`. 빌드 단계에 `--platform=$BUILDPLATFORM` + `TARGETOS/TARGETARCH`
->   로 교차 컴파일하면 에뮬레이션 없이 빠르다(CGO_ENABLED=0 이라 가능) — **아직 재지 않았다.**
-> - **남이 돌리는 이미지는 스스로 갱신되지 않는다** — CA 인증서·Go 패치가 빌드 시점에 굳는다. 올린 뒤에는 정기 재빌드와
->   CI `govulncheck` 가 선택이 아니게 된다. `latest` 만 올리지 말고 버전 태그도.
-> - **받는 사람의 노출** — README 가 `-p 127.0.0.1:8080:8080` 을 쓰는 이유를 적어야 한다. `-p 8080:8080` 으로 열면
->   그 사람 서버가 **아무나 쓰는 페이지 가져오기 중계기**가 되고, 스캔 대상에 그 사람 IP 가 찍힌다.
-> - 그때 README 의 Docker 절은 `docker build` 대신 `docker run <이름>:<태그>` 로 바뀐다.
+> | 그때 적어 둔 것 | 지금 있는 곳 |
+> |---|---|
+> | API 계약 · 그리는 쪽 보안 요구 · compose · nginx · Cloudflare | **`docs/INTEGRATION.md`** (이 저장소가 소유한다) |
+> | 웹사이트를 작업하는 법 — 배포 절차 · CSP · 확인 방법 · 함정 | **`my_homepage/CLAUDE.md`** (별도 저장소, 2026-09-22 분리) |
+> | 왜 그렇게 정했는가 | `DISCUSSION.md` 논의 12-41 · 12-45~49 |
+>
+> 남은 사실 둘만 여기 둔다 — 둘 다 **이 저장소의 코드**에 관한 것이다.
+> - **컨테이너 안에서는 `-addr 0.0.0.0:8080`.** `127.0.0.1` 이면 로그는 멀쩡한데 nginx 가 못 닿는다. 외부 차단은 compose 의 `expose` 가 한다.
+> - **Docker 안에서 SSRF 방어가 더 중요하다.** compose 서비스 이름은 `172.18.0.x`(사설), 내장 DNS 는 `127.0.0.11`(루프백) — 47교시의 주소 판정이 이미 막는다. 문자열 검사였다면 `http://api:8000/` 이 통과했다.
 
 사용자의 목표: **포트폴리오 웹 페이지에서 URL 을 입력받아 `curl` 로 가져와 스캔하고 결과를 보여준다.**
 
@@ -350,12 +309,12 @@ file:///etc/passwd          로컬 파일
    **스캐너의 `Context.Domain` 은 반드시 이 값을 써야 한다** (요청 URL 로 판정하면
    `mybank.com` → `evil.com` 리다이렉트에서 `evil.com` 의 로그인 폼을 같은 출처로 본다).
 
-2. ~~**출력 이스케이프**~~ → **50교시에서 완료.** `report/html.go`(`WriteHTML`) — `html/template` + 상수 템플릿 +
+2. ~~**출력 이스케이프**~~ → **50교시에서 완료, 52교시에 삭제.** (`report/` 패키지는 지금 없다 — JSON API 로 바뀌며 이스케이프 책임이 그리는 쪽으로 옮겨 갔다) 당시: `report/html.go`(`WriteHTML`) — `html/template` + 상수 템플릿 +
    `<meta charset>`(앞 1024바이트) + `<meta>` CSP. **자기 스캔 테스트**: 악성 페이지 리포트를 우리 스캐너로 다시 검사해 0건.
    대상 URL 은 링크로 만들지 않는다(악성일 수 있는 곳으로 사용자를 보내지 않는다).
-3. **웹 계층 → 51교시** — `fetcher` 와 `report` 를 `http.Handler` 로 잇는다. CSP 를 **응답 헤더**로 ·
+3. ~~**웹 계층**~~ → **51·52교시에서 완료.** — `fetcher` 와 `report` 를 `http.Handler` 로 잇는다. CSP 를 **응답 헤더**로 ·
    우리 서버가 스캐닝 도구로 남용되지 않게(rate limit · 로그).
-4. **격리 운영** — VM/컨테이너/VPN. 코드가 안전해진 뒤 덧붙이는 층이다.
+4. ~~**격리 운영**~~ → **완료.** compose 에서 `read_only` · `cap_drop: ALL` · `no-new-privileges` · `mem_limit` · `pids_limit`(68교시). 코드가 안전해진 뒤 덧붙이는 층이다.
 
 ### 보류 항목 (성격이 다르니 섞지 말 것)
 
